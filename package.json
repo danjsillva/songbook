@@ -1,0 +1,15 @@
+{
+  "name": "songbook",
+  "private": true,
+  "workspaces": [
+    "web",
+    "api",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "yarn workspace @songbook/web dev",
+    "dev:api": "yarn workspace @songbook/api dev",
+    "build": "yarn workspace @songbook/web build",
+    "deploy:api": "yarn workspace @songbook/api deploy"
+  }
+}
