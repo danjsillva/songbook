@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 import { parseHtmlToSongLines, generatePlainText, detectKey } from './parser'
-import { extractSongFromUrl } from './groq'
+import { extractSongFromUrl, classifySongSections } from './groq'
 import type {
   Song, SongListItem, CreateSongInput, ExtractFromUrlInput,
   Setlist, SetlistListItem, SetlistSong, CreateSetlistInput,
@@ -173,6 +173,68 @@ async function deleteSong(db: D1Database, id: string): Promise<Response> {
   }
 
   return json({ success: true })
+}
+
+// POST /api/songs/:id/classify - Classifica seções da música usando IA
+async function classifySong(db: D1Database, id: string, apiKey: string): Promise<Response> {
+  // Buscar música
+  const row = await db
+    .prepare('SELECT * FROM songs WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number }>()
+
+  if (!row) {
+    return error('Song not found', 404)
+  }
+
+  // Gerar texto com acordes para classificação
+  const existingContent = JSON.parse(row.content) as Array<{ lyrics: string; chords: Array<{ chord: string; position: number }> }>
+
+  // Reconstruir o formato de cifra (acordes acima da letra)
+  let lyricsWithChords = ''
+  for (const line of existingContent) {
+    if (line.chords.length > 0) {
+      // Linha de acordes
+      let chordLine = ''
+      let lastPos = 0
+      for (const { chord, position } of line.chords) {
+        while (chordLine.length < position) {
+          chordLine += ' '
+        }
+        chordLine += chord
+      }
+      lyricsWithChords += chordLine + '\n'
+    }
+    lyricsWithChords += line.lyrics + '\n'
+  }
+
+  // Chamar Groq para classificar
+  const classifiedLyrics = await classifySongSections(lyricsWithChords, apiKey)
+
+  // Re-parsear o resultado
+  const newContent = parseHtmlToSongLines(classifiedLyrics)
+  const newPlainText = generatePlainText(newContent)
+
+  // Atualizar no banco
+  await db
+    .prepare('UPDATE songs SET content = ?, plain_text = ? WHERE id = ?')
+    .bind(JSON.stringify(newContent), newPlainText, id)
+    .run()
+
+  // Retornar música atualizada
+  const song: Song = {
+    id: row.id,
+    title: row.title,
+    artist: row.artist,
+    originalKey: row.original_key,
+    bpm: row.bpm,
+    youtubeUrl: row.youtube_url,
+    content: newContent,
+    plainText: newPlainText,
+    createdAt: row.created_at,
+  }
+
+  return json(song)
 }
 
 // GET /api/search?q= - Busca full-text
@@ -532,6 +594,23 @@ export default {
       const songViewMatch = path.match(/^\/api\/songs\/([^/]+)\/view$/)
       if (songViewMatch && method === 'PUT') {
         return markSongViewed(env.DB, songViewMatch[1])
+      }
+
+      // POST /api/songs/:id/classify
+      const songClassifyMatch = path.match(/^\/api\/songs\/([^/]+)\/classify$/)
+      if (songClassifyMatch && method === 'POST') {
+        if (!env.GROQ_API_KEY) {
+          return error('GROQ_API_KEY not configured', 500)
+        }
+        try {
+          return await classifySong(env.DB, songClassifyMatch[1], env.GROQ_API_KEY)
+        } catch (err) {
+          console.error('Classification error:', err)
+          return error(
+            err instanceof Error ? err.message : 'Falha ao classificar seções',
+            500
+          )
+        }
       }
 
       // GET /api/songs/:id

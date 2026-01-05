@@ -4,10 +4,23 @@ export interface ChordPosition {
   position: number // Índice do caractere na linha de letra
 }
 
+// Gera cor hex consistente baseada no nome do marcador
+export function getSectionColor(section: string): string {
+  let hash = 0
+  for (let i = 0; i < section.length; i++) {
+    hash = section.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  // Gera HSL com saturação e luminosidade fixas para cores vibrantes
+  const hue = Math.abs(hash) % 360
+  return `hsl(${hue}, 70%, 55%)`
+}
+
 // Linha do modelo canônico
 export interface SongLine {
   lyrics: string
   chords: ChordPosition[]
+  section?: string  // Marcador de seção (qualquer texto)
 }
 
 // Música completa

@@ -12,6 +12,25 @@ function formatDate(dateStr: string): string {
   return `${day}/${month}/${year}`
 }
 
+function Shortcut({ keys, label }: { keys: string; label: string }) {
+  const keyParts = keys.split(' ')
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1 min-w-[4.5rem]">
+        {keyParts.map((key, i) => (
+          <kbd
+            key={i}
+            className="px-1.5 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs text-center min-w-[1.5rem]"
+          >
+            {key}
+          </kbd>
+        ))}
+      </div>
+      <span className="text-neutral-400 text-xs">{label}</span>
+    </div>
+  )
+}
+
 export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
   const [recentSongs, setRecentSongs] = useState<SongListItem[]>([])
   const [recentSetlists, setRecentSetlists] = useState<SetlistListItem[]>([])
@@ -136,58 +155,30 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
                 <div className="space-y-2">
                   <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Geral</div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">/</kbd>
-                    <span className="text-neutral-400">Buscar musica</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">Esc</kbd>
-                    <span className="text-neutral-400">Voltar</span>
-                  </div>
+                  <Shortcut keys="/" label="Buscar musica" />
+                  <Shortcut keys="Esc" label="Voltar" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Transposicao</div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">+</kbd>
-                    <span className="text-neutral-400">Tom +1</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">-</kbd>
-                    <span className="text-neutral-400">Tom -1</span>
-                  </div>
+                  <Shortcut keys="+" label="Tom +1" />
+                  <Shortcut keys="-" label="Tom -1" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Visualizacao</div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">0</kbd>
-                    <span className="text-neutral-400">Aumentar fonte</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">9</kbd>
-                    <span className="text-neutral-400">Diminuir fonte</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">Space</kbd>
-                    <span className="text-neutral-400">Rolar para baixo</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">Shift+Space</kbd>
-                    <span className="text-neutral-400">Rolar para cima</span>
-                  </div>
+                  <Shortcut keys="0" label="Aumentar fonte" />
+                  <Shortcut keys="9" label="Diminuir fonte" />
+                  <Shortcut keys="Space" label="Rolar baixo" />
+                  <Shortcut keys="Shift Space" label="Rolar cima" />
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Setlist</div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">n</kbd>
-                    <span className="text-neutral-400">Toggle notas</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <kbd className="px-2 py-0.5 bg-neutral-700 rounded text-neutral-300 font-mono text-xs">1-5</kbd>
-                    <span className="text-neutral-400">Ir para musica</span>
-                  </div>
+                  <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Navegacao</div>
+                  <Shortcut keys="↑" label="Secao anterior" />
+                  <Shortcut keys="↓" label="Proxima secao" />
+                  <Shortcut keys="n" label="Toggle notas" />
+                  <Shortcut keys="1-5" label="Ir para musica" />
                 </div>
               </div>
             </div>

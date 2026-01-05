@@ -3,12 +3,13 @@ import { api } from '../api/client'
 import { parseContent } from '../utils/parser'
 import { contentToText } from '../utils/contentToText'
 import type { Song, SongLine } from '@songbook/shared'
+import { getSectionColor } from '@songbook/shared'
 import { Layout } from './Layout'
 
 interface SongFormProps {
   song?: Song
   onBack: () => void
-  onSaved: () => void
+  onSaved: (id: string) => void
   onDelete?: () => void
   onHome: () => void
   onSearchSongs: () => void
@@ -51,26 +52,41 @@ function Preview({ lines }: { lines: SongLine[] }) {
 
   return (
     <div className="font-mono text-sm space-y-1">
-      {lines.map((line, i) => (
-        <div key={i}>
-          {line.chords.length > 0 && (
-            <div className="text-amber-400 font-bold whitespace-pre">
-              {line.chords.map((c, j) => {
-                const prevEnd = j > 0
-                  ? line.chords[j-1].position + line.chords[j-1].chord.length
-                  : 0
-                const spaces = Math.max(0, c.position - prevEnd)
-                return ' '.repeat(spaces) + c.chord
-              }).join('')}
-            </div>
-          )}
-          {line.lyrics ? (
-            <div className="whitespace-pre-wrap">{line.lyrics}</div>
-          ) : line.chords.length === 0 ? (
-            <div className="h-4" />
-          ) : null}
-        </div>
-      ))}
+      {lines.map((line, i) => {
+        const sectionColor = line.section ? getSectionColor(line.section) : ''
+
+        return (
+          <div key={i}>
+            {line.section && (
+              <span
+                className="inline-block px-2 py-0.5 rounded text-xs uppercase tracking-wide mb-1"
+                style={{
+                  color: sectionColor,
+                  backgroundColor: sectionColor.replace('hsl(', 'hsla(').replace(')', ', 0.2)')
+                }}
+              >
+                {line.section}
+              </span>
+            )}
+            {line.chords.length > 0 && (
+              <div className="text-amber-400 font-bold whitespace-pre">
+                {line.chords.map((c, j) => {
+                  const prevEnd = j > 0
+                    ? line.chords[j-1].position + line.chords[j-1].chord.length
+                    : 0
+                  const spaces = Math.max(0, c.position - prevEnd)
+                  return ' '.repeat(spaces) + c.chord
+                }).join('')}
+              </div>
+            )}
+            {line.lyrics ? (
+              <div className="whitespace-pre-wrap">{line.lyrics}</div>
+            ) : line.chords.length === 0 ? (
+              <div className="h-4" />
+            ) : null}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -182,13 +198,16 @@ export function SongForm({
         html: html.trim(),
       }
 
+      let songId: string
       if (isEditing && song) {
         await api.songs.update(song.id, input)
+        songId = song.id
       } else {
-        await api.songs.create(input)
+        const created = await api.songs.create(input)
+        songId = created.id
       }
 
-      onSaved()
+      onSaved(songId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar')
     } finally {

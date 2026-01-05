@@ -95,14 +95,11 @@ function App() {
     setView('view-song')
   }, [])
 
-  const handleSongSaved = useCallback(() => {
+  const handleSongSaved = useCallback((id: string) => {
+    setSelectedSongId(id)
     refetchSong()
-    if (selectedSongId) {
-      setView('view-song')
-    } else {
-      setView('dashboard')
-    }
-  }, [selectedSongId, refetchSong])
+    setView('view-song')
+  }, [refetchSong])
 
   const handleSongDeleted = useCallback(() => {
     setSelectedSongId(null)

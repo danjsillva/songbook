@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Song, SongLine } from '@songbook/shared'
+import { getSectionColor } from '@songbook/shared'
 import { transposeChord, getKeyFromSemitones, getSemitonesBetweenKeys } from '../utils/transpose'
 import { Layout, SidebarButton } from './Layout'
 import { NotesSidebar } from './NotesSidebar'
+import { SectionMinimap } from './SectionMinimap'
 import { api } from '../api/client'
 
 interface SetlistSongInfo {
@@ -126,13 +128,13 @@ function KeySelector({ currentKey, onSelectKey, onClose }: KeySelectorProps) {
   )
 }
 
-function ChordLine({ line, transpose, preference }: {
+const ChordLine = React.forwardRef<HTMLDivElement, {
   line: SongLine
   transpose: number
   preference: AccidentalPreference
-}) {
-  if (line.chords.length === 0 && !line.lyrics) {
-    return <div className="h-4" />
+}>(({ line, transpose, preference }, ref) => {
+  if (line.chords.length === 0 && !line.lyrics && !line.section) {
+    return <div ref={ref} className="h-4" />
   }
 
   const renderChords = () => {
@@ -155,15 +157,33 @@ function ChordLine({ line, transpose, preference }: {
     )
   }
 
+  const sectionColor = line.section ? getSectionColor(line.section) : ''
+
   return (
-    <div className="leading-relaxed">
+    <div
+      ref={ref}
+      className="leading-relaxed"
+    >
+      {line.section && (
+        <span
+          className="inline-block px-2 py-0.5 rounded text-xs uppercase tracking-wide mb-1"
+          style={{
+            color: sectionColor,
+            backgroundColor: sectionColor.replace('hsl(', 'hsla(').replace(')', ', 0.2)')
+          }}
+        >
+          {line.section}
+        </span>
+      )}
       {renderChords()}
       {line.lyrics && (
         <div className="whitespace-pre-wrap">{line.lyrics}</div>
       )}
     </div>
   )
-}
+})
+
+ChordLine.displayName = 'ChordLine'
 
 export function SongViewer({
   song,
@@ -194,7 +214,21 @@ export function SongViewer({
   const [showKeySelector, setShowKeySelector] = useState(false)
   const [localNotes, setLocalNotes] = useState(notes || '')
   const [notesMinimized, setNotesMinimized] = useState(!notes?.trim())
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
+  const lineRefs = useRef<(HTMLDivElement | null)[]>([])
+  const isNavigatingRef = useRef(false)
+
+  // Get section indices for navigation
+  const sectionIndices = useMemo(() => {
+    const indices: number[] = []
+    song.content.forEach((line, index) => {
+      if (line.section) {
+        indices.push(index)
+      }
+    })
+    return indices
+  }, [song.content])
 
   // Atualizar estado quando mudar o item do setlist (mesmo que seja a mesma musica)
   useEffect(() => {
@@ -243,6 +277,58 @@ export function SongViewer({
     }
     setShowKeySelector(false)
   }
+
+  // Scroll to section
+  const handleNavigateToSection = useCallback((lineIndex: number) => {
+    // Atualiza o índice da seção diretamente
+    const sectionIdx = sectionIndices.indexOf(lineIndex)
+    if (sectionIdx !== -1) {
+      setCurrentSectionIndex(sectionIdx)
+    }
+
+    // Bloqueia o scroll handler temporariamente
+    isNavigatingRef.current = true
+
+    const lineEl = lineRefs.current[lineIndex]
+    if (lineEl && contentRef.current) {
+      lineEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    // Libera o scroll handler após a animação
+    setTimeout(() => {
+      isNavigatingRef.current = false
+    }, 500)
+  }, [sectionIndices])
+
+  // Track current section on scroll
+  useEffect(() => {
+    const container = contentRef.current
+    if (!container || sectionIndices.length === 0) return
+
+    const handleScroll = () => {
+      // Ignora durante navegação programática
+      if (isNavigatingRef.current) return
+
+      const containerTop = container.getBoundingClientRect().top
+      let activeIndex = 0
+
+      for (let i = sectionIndices.length - 1; i >= 0; i--) {
+        const lineEl = lineRefs.current[sectionIndices[i]]
+        if (lineEl) {
+          const lineTop = lineEl.getBoundingClientRect().top
+          if (lineTop <= containerTop + 100) {
+            activeIndex = i
+            break
+          }
+        }
+      }
+
+      setCurrentSectionIndex(activeIndex)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [sectionIndices])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (showKeySelector) return
@@ -451,6 +537,7 @@ export function SongViewer({
           {song.content.map((line, i) => (
             <ChordLine
               key={i}
+              ref={el => { lineRefs.current[i] = el }}
               line={line}
               transpose={transpose}
               preference={preference}
@@ -458,6 +545,15 @@ export function SongViewer({
           ))}
         </div>
       </div>
+
+      {/* Section Minimap */}
+      {sectionIndices.length > 0 && (
+        <SectionMinimap
+          content={song.content}
+          currentSection={currentSectionIndex}
+          onNavigate={handleNavigateToSection}
+        />
+      )}
 
       {/* Sidebar de notas (quando vem de um setlist) */}
       {setlistItemId && (

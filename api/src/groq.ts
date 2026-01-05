@@ -15,10 +15,10 @@ interface GroqResponse {
   }>
 }
 
-const SYSTEM_PROMPT = `Você é um especialista em extração de cifras musicais.
-Sua tarefa é extrair informações de páginas HTML de sites de cifras (Cifra Club, Cifras, etc).
+const SYSTEM_PROMPT = `Você é especialista em extrair cifras de páginas HTML.
+Sua tarefa é extrair informações de sites de cifras (Cifra Club, Ultimate Guitar, etc).
 
-Você DEVE retornar APENAS um objeto JSON válido com esta estrutura:
+RETORNE APENAS um objeto JSON válido com esta estrutura:
 {
   "title": "Nome da música",
   "artist": "Nome do artista/banda",
@@ -27,22 +27,34 @@ Você DEVE retornar APENAS um objeto JSON válido com esta estrutura:
 }
 
 Para o campo "lyrics":
-- Mantenha os acordes na linha ACIMA da letra correspondente
-- Preserve os espaços para alinhar acordes com as sílabas corretas
-- Remova marcações de estrutura como [Intro], [Verso], [Refrão], etc
-- Mantenha linhas em branco entre estrofes
-- NÃO inclua tablatura, apenas acordes e letra
+- Mantenha acordes na linha ACIMA da letra correspondente
+- Preserve espaços para alinhar acordes com sílabas corretas
+- INCLUA marcadores de seção no formato [Seção] em linhas separadas
+- PRESERVE os marcadores originais da página (ex: [Primeira Parte], [Segunda Parte])
+- Se a página não tem marcadores, adicione-os em português
+- Mantenha linhas em branco entre seções
+- NÃO inclua tablaturas, apenas acordes e letra
 
 Exemplo de formato:
+[Intro]
+G  D  Em  C
+
+[Primeira Parte]
         G                D
 Quando eu digo que deixei de te amar
         Em               C
 É porque eu te amo
 
+[Refrão]
+        C                G
+E é por isso que eu canto
+
 IMPORTANTE:
 - Não inclua HTML, scripts ou estilos
 - Não invente dados - extraia apenas o que está na página
-- Se não encontrar algum campo, use null ou string vazia
+- Preserve os marcadores originais da página quando existirem
+- Se não houver marcadores, adicione-os baseado na estrutura
+- Se um campo não for encontrado, use null ou string vazia
 - Retorne APENAS o JSON, sem markdown ou explicações`
 
 async function fetchPageHtml(url: string): Promise<string> {
@@ -152,14 +164,15 @@ async function callGroqLlm(html: string, apiKey: string): Promise<ExtractedSongD
   // Extrair campos usando regex (mais robusto que JSON.parse)
   const titleMatch = content.match(/"title"\s*:\s*"([^"]+)"/)
   const artistMatch = content.match(/"artist"\s*:\s*"([^"]+)"/)
-  const keyMatch = content.match(/"originalKey"\s*:\s*"([^"]+)"/)
+  // originalKey pode ser "G", "Am" ou null
+  const keyMatch = content.match(/"originalKey"\s*:\s*(?:"([^"]+)"|null)/)
 
   // Extrair lyrics (pode ter quebras de linha)
   const lyricsMatch = content.match(/"lyrics"\s*:\s*"([\s\S]*?)"\s*\}/)
 
   const title = titleMatch?.[1] || ''
   const artist = artistMatch?.[1] || ''
-  const originalKey = keyMatch?.[1] || null
+  const originalKey = keyMatch?.[1] || null // Se casou com null, [1] é undefined -> null
   let lyrics = lyricsMatch?.[1] || ''
 
   // Converter escape sequences
@@ -219,4 +232,113 @@ export async function extractSongFromUrl(
   const extracted = await callGroqLlm(html, apiKey)
 
   return extracted
+}
+
+// Prompt for section classification
+const CLASSIFY_SECTIONS_PROMPT = `Você é especialista em analisar músicas e cifras.
+Sua tarefa é identificar e marcar seções em uma cifra que ainda não tem marcadores.
+
+RETORNE a cifra EXATAMENTE como recebida, mas ADICIONANDO marcadores de seção no formato [Seção] em linhas separadas ANTES de cada seção.
+
+Use marcadores em português como:
+- [Intro] - introdução instrumental
+- [Verso] ou [Primeira Parte], [Segunda Parte] - estrofes
+- [Pré-Refrão] - parte que prepara o refrão
+- [Refrão] - parte que repete (pode usar [Refrão 2x] se repetir)
+- [Ponte] - seção de transição
+- [Solo] - solos instrumentais
+- [Final] - encerramento
+- [Instrumental] - partes instrumentais no meio
+
+REGRAS IMPORTANTES:
+1. NÃO modifique acordes ou letra existentes
+2. NÃO remova linhas em branco existentes
+3. APENAS adicione marcadores [Seção] em novas linhas antes de cada seção
+4. Se a cifra já tiver marcadores, preserve-os
+5. Identifique seções pela estrutura: refrões geralmente repetem, versos têm melodias similares
+6. Retorne APENAS a cifra com marcadores, sem explicações
+
+Exemplo de entrada:
+G  D  Em  C
+
+        G                D
+Quando eu digo que deixei de te amar
+        Em               C
+É porque eu te amo
+
+        G                D
+Quando eu digo que deixei de te amar
+        Em               C
+É porque eu te amo
+
+        C                G
+E por isso que eu canto
+        D                Em
+Cada vez mais alto
+
+Exemplo de saída:
+[Intro]
+G  D  Em  C
+
+[Verso]
+        G                D
+Quando eu digo que deixei de te amar
+        Em               C
+É porque eu te amo
+
+[Verso]
+        G                D
+Quando eu digo que deixei de te amar
+        Em               C
+É porque eu te amo
+
+[Refrão]
+        C                G
+E por isso que eu canto
+        D                Em
+Cada vez mais alto`
+
+export async function classifySongSections(
+  lyrics: string,
+  apiKey: string
+): Promise<string> {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: CLASSIFY_SECTIONS_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `Adicione marcadores de seção à seguinte cifra:\n\n${lyrics}`,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 8192,
+    }),
+  })
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.')
+    }
+    const errorText = await response.text()
+    throw new Error(`Erro na API Groq: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json() as GroqResponse
+  const content = data.choices[0]?.message?.content
+
+  if (!content) {
+    throw new Error('Resposta vazia da IA')
+  }
+
+  return content.trim()
 }

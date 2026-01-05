@@ -49,6 +49,11 @@ export const api = {
       request<{ success: boolean }>(`/songs/${id}`, {
         method: 'DELETE',
       }),
+
+    classify: (id: string) =>
+      request<Song>(`/songs/${id}/classify`, {
+        method: 'POST',
+      }),
   },
 
   search: (query: string) =>
