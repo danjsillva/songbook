@@ -1,4 +1,5 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 // Icons
 const Icons = {
@@ -54,20 +55,7 @@ export function Layout({
   backButton,
 }: LayoutProps) {
   const [showAddMenu, setShowAddMenu] = useState(false)
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    if (showAddMenu) {
-      const handleClick = () => setShowAddMenu(false)
-      const timeout = setTimeout(() => {
-        window.addEventListener('click', handleClick)
-      }, 0)
-      return () => {
-        clearTimeout(timeout)
-        window.removeEventListener('click', handleClick)
-      }
-    }
-  }, [showAddMenu])
+  const addMenuRef = useClickOutside<HTMLDivElement>(() => setShowAddMenu(false), showAddMenu)
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex">
@@ -105,15 +93,12 @@ export function Layout({
         <SidebarSpacer />
 
         {/* Botao adicionar no bottom */}
-        <div className="relative">
+        <div className="relative" ref={addMenuRef}>
           <SidebarButton onClick={() => setShowAddMenu(!showAddMenu)} title="Adicionar" variant="primary">
             {Icons.add}
           </SidebarButton>
           {showAddMenu && (
-            <div
-              className="absolute left-16 bottom-0 bg-neutral-800 rounded-xl shadow-lg py-2 min-w-[180px] z-50"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute left-16 bottom-0 bg-neutral-800 rounded-xl shadow-lg py-2 min-w-[180px] z-50">
               <button onClick={() => { setShowAddMenu(false); onAddSong() }} className="w-full px-5 py-3 text-left hover:bg-neutral-700 text-base cursor-pointer flex items-center gap-3">
                 {Icons.music}
                 Nova Musica

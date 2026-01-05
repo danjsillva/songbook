@@ -5,6 +5,7 @@ import { transposeChord, getKeyFromSemitones, getSemitonesBetweenKeys } from '..
 import { Layout, SidebarButton } from './Layout'
 import { NotesSidebar } from './NotesSidebar'
 import { SectionMinimap } from './SectionMinimap'
+import { useClickOutside } from '../hooks/useClickOutside'
 import { api } from '../api/client'
 
 interface SetlistSongInfo {
@@ -57,14 +58,14 @@ const Icons = {
       <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
     </svg>
   ),
-  arrowUp: (
+  arrowLeft: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   ),
-  arrowDown: (
+  arrowRight: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
 }
@@ -78,23 +79,8 @@ interface KeySelectorProps {
 }
 
 function KeySelector({ currentKey, onSelectKey, onClose }: KeySelectorProps) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useClickOutside<HTMLDivElement>(onClose)
   const currentRoot = currentKey.replace('m', '').replace('M', '')
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    const timeout = setTimeout(() => {
-      window.addEventListener('click', handleClickOutside)
-    }, 0)
-    return () => {
-      clearTimeout(timeout)
-      window.removeEventListener('click', handleClickOutside)
-    }
-  }, [onClose])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,14 +93,14 @@ function KeySelector({ currentKey, onSelectKey, onClose }: KeySelectorProps) {
   return (
     <div
       ref={ref}
-      className="absolute left-16 top-0 bg-neutral-800 border border-neutral-700 rounded-xl p-3 shadow-xl z-50"
+      className="fixed left-[72px] top-1/2 -translate-y-1/2 bg-neutral-800 border border-neutral-700 rounded-xl p-3 shadow-xl z-50"
     >
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-2 w-max">
         {ALL_KEYS.map(key => (
           <button
             key={key}
             onClick={() => onSelectKey(key)}
-            className={`w-10 h-10 rounded-lg text-sm font-mono transition-colors cursor-pointer flex items-center justify-center ${
+            className={`w-11 h-11 rounded-lg text-sm font-mono transition-colors cursor-pointer flex items-center justify-center ${
               currentRoot === key
                 ? 'bg-amber-600 text-white'
                 : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
@@ -244,6 +230,11 @@ export function SongViewer({
 
   const currentKey = getKeyFromSemitones(song.originalKey, transpose, preference)
 
+  // Foco automático no container ao entrar na música
+  useEffect(() => {
+    contentRef.current?.focus()
+  }, [song.id])
+
   // Posição atual no setlist e navegação
   const currentPosition = setlistSongs?.findIndex(s => s.itemId === setlistItemId) ?? -1
   const canGoPrev = currentPosition > 0
@@ -300,12 +291,17 @@ export function SongViewer({
     }, 500)
   }, [sectionIndices])
 
-  // Track current section on scroll
+  // Track current section on scroll - com throttle via requestAnimationFrame
   useEffect(() => {
     const container = contentRef.current
     if (!container || sectionIndices.length === 0) return
 
-    const handleScroll = () => {
+    let rafId: number | null = null
+    let lastActiveIndex = 0
+
+    const updateSection = () => {
+      rafId = null
+
       // Ignora durante navegação programática
       if (isNavigatingRef.current) return
 
@@ -323,11 +319,27 @@ export function SongViewer({
         }
       }
 
-      setCurrentSectionIndex(activeIndex)
+      // Só atualiza state se mudou (evita re-renders desnecessários)
+      if (activeIndex !== lastActiveIndex) {
+        lastActiveIndex = activeIndex
+        setCurrentSectionIndex(activeIndex)
+      }
     }
 
-    container.addEventListener('scroll', handleScroll)
-    return () => container.removeEventListener('scroll', handleScroll)
+    const handleScroll = () => {
+      // Throttle: máximo 1 execução por frame (60fps)
+      if (rafId === null) {
+        rafId = requestAnimationFrame(updateSection)
+      }
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
   }, [sectionIndices])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -362,13 +374,6 @@ export function SongViewer({
       case 'n':
         if (setlistItemId) {
           setNotesMinimized(m => !m)
-        }
-        break
-      case ' ':
-        e.preventDefault()
-        if (contentRef.current) {
-          const direction = e.shiftKey ? -1 : 1
-          contentRef.current.scrollBy({ top: direction * window.innerHeight * 0.8, behavior: 'smooth' })
         }
         break
       case '0':
@@ -459,34 +464,34 @@ export function SongViewer({
     >
       {/* Header */}
       <div className="p-6 border-b border-neutral-800">
-        <div className="max-w-4xl mx-auto flex items-start justify-between gap-4">
-          <div className="min-w-0 flex items-center gap-3">
-            {/* Posição e navegação do setlist */}
-            {currentPosition >= 0 && (
-              <>
-                <span className="text-neutral-500 text-xl font-semibold w-6 text-center flex-shrink-0">
-                  {currentPosition + 1}
-                </span>
-                <div className="flex flex-col flex-shrink-0">
-                  <button
-                    onClick={() => handleNavigate('prev')}
-                    disabled={!canGoPrev}
-                    className="p-0.5 text-neutral-600 hover:text-white disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
-                    title="Música anterior"
-                  >
-                    {Icons.arrowUp}
-                  </button>
-                  <button
-                    onClick={() => handleNavigate('next')}
-                    disabled={!canGoNext}
-                    className="p-0.5 text-neutral-600 hover:text-white disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
-                    title="Próxima música"
-                  >
-                    {Icons.arrowDown}
-                  </button>
-                </div>
-              </>
-            )}
+        <div className="max-w-4xl mx-auto relative">
+          {/* Navegação do setlist - posicionada à esquerda do container */}
+          {currentPosition >= 0 && setlistSongs && (
+            <div className="absolute right-full pr-4 top-1 flex items-center gap-1">
+              <button
+                onClick={() => handleNavigate('prev')}
+                disabled={!canGoPrev}
+                className="p-1 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                title="Música anterior"
+              >
+                {Icons.arrowLeft}
+              </button>
+              <span className="text-neutral-500 text-lg font-semibold min-w-[3rem] text-center">
+                {currentPosition + 1}/{setlistSongs.length}
+              </span>
+              <button
+                onClick={() => handleNavigate('next')}
+                disabled={!canGoNext}
+                className="p-1 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                title="Próxima música"
+              >
+                {Icons.arrowRight}
+              </button>
+            </div>
+          )}
+
+          {/* Conteúdo principal */}
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-semibold">{song.title}</h1>
@@ -500,29 +505,30 @@ export function SongViewer({
               </div>
               <span className="text-neutral-400">{song.artist}</span>
             </div>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            {setlistItemId && (
-              localNotes ? (
-                <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
-                  Notas
+
+            <div className="flex gap-2 flex-shrink-0">
+              {setlistItemId && (
+                localNotes ? (
+                  <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
+                    Notas
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
+                    Notas
+                  </span>
+                )
+              )}
+              {(bpmOverride || song.bpm) && (
+                <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
+                  {bpmOverride || song.bpm} BPM
                 </span>
-              ) : (
-                <span className="px-2 py-1 bg-neutral-800 text-neutral-600 rounded text-sm font-mono">
-                  Notas
+              )}
+              {song.originalKey && (
+                <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+                  {song.originalKey}
                 </span>
-              )
-            )}
-            {(bpmOverride || song.bpm) && (
-              <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                {bpmOverride || song.bpm} BPM
-              </span>
-            )}
-            {song.originalKey && (
-              <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
-                {song.originalKey}
-              </span>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -530,30 +536,37 @@ export function SongViewer({
       {/* Conteudo */}
       <div
         ref={contentRef}
-        className="p-6 overflow-auto"
+        tabIndex={0}
+        className="p-6 overflow-auto outline-none"
         style={{ fontSize: `${fontSize}px`, height: 'calc(100vh - 100px)' }}
       >
-        <div className="font-mono space-y-1 max-w-4xl mx-auto">
-          {song.content.map((line, i) => (
-            <ChordLine
-              key={i}
-              ref={el => { lineRefs.current[i] = el }}
-              line={line}
-              transpose={transpose}
-              preference={preference}
-            />
-          ))}
+        <div className="max-w-4xl mx-auto flex gap-4">
+          <div className="font-mono space-y-1 flex-1">
+            {song.content.map((line, i) => (
+              <ChordLine
+                key={i}
+                ref={el => { lineRefs.current[i] = el }}
+                line={line}
+                transpose={transpose}
+                preference={preference}
+              />
+            ))}
+          </div>
+
+          {/* Section Minimap - à direita da cifra, centralizado */}
+          {sectionIndices.length > 0 && (
+            <div className="flex-shrink-0 h-0 sticky top-1/2">
+              <div className="-translate-y-1/2">
+                <SectionMinimap
+                  content={song.content}
+                  currentSection={currentSectionIndex}
+                  onNavigate={handleNavigateToSection}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Section Minimap */}
-      {sectionIndices.length > 0 && (
-        <SectionMinimap
-          content={song.content}
-          currentSection={currentSectionIndex}
-          onNavigate={handleNavigateToSection}
-        />
-      )}
 
       {/* Sidebar de notas (quando vem de um setlist) */}
       {setlistItemId && (

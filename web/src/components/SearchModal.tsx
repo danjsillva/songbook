@@ -1,7 +1,19 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { api } from '../api/client'
 import type { SongListItem, SetlistListItem, SongLine } from '@songbook/shared'
 import { parseContent } from '../utils/parser'
+
+// Hook para debounce - evita recalcular filter a cada keystroke
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 export interface SetlistSongData {
   key: string
@@ -82,6 +94,9 @@ export function SearchModal({
   const [notes, setNotes] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Debounce: só filtra após 150ms de inatividade
+  const debouncedQuery = useDebouncedValue(query, 150)
+
   const parsedNotes = useMemo(() => {
     if (!notes.trim()) return []
     return parseContent(notes)
@@ -105,31 +120,37 @@ export function SearchModal({
     }
   }, [type])
 
-  // Fechar com ESC (stopPropagation para não propagar para a página abaixo)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        if (selectedSong) {
-          setSelectedSong(null)
-        } else {
-          onClose()
-        }
+  // Fechar com ESC - memoizado para evitar re-bindind desnecessário
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      if (selectedSong) {
+        setSelectedSong(null)
+      } else {
+        onClose()
       }
     }
-    window.addEventListener('keydown', handleKeyDown, true) // capture phase
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [onClose, selectedSong])
 
-  const filteredSongs = songs.filter(
-    (s) =>
-      s.title.toLowerCase().includes(query.toLowerCase()) ||
-      s.artist.toLowerCase().includes(query.toLowerCase())
-  )
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown, true) // capture phase
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [handleKeyDown])
 
-  const filteredSetlists = setlists.filter(
-    (s) => s.name.toLowerCase().includes(query.toLowerCase())
-  )
+  // Filters memoizados com query debounced - evita O(n) a cada keystroke
+  const filteredSongs = useMemo(() => {
+    const q = debouncedQuery.toLowerCase()
+    if (!q) return songs
+    return songs.filter(
+      (s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+    )
+  }, [songs, debouncedQuery])
+
+  const filteredSetlists = useMemo(() => {
+    const q = debouncedQuery.toLowerCase()
+    if (!q) return setlists
+    return setlists.filter((s) => s.name.toLowerCase().includes(q))
+  }, [setlists, debouncedQuery])
 
   const handleSelectSong = (song: SongListItem) => {
     if (onSelectSongWithDetails) {

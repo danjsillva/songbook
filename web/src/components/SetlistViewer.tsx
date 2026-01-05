@@ -4,6 +4,7 @@ import type { Setlist, SongListItem, SetlistSong, SongLine } from '@songbook/sha
 import { Layout } from './Layout'
 import { SearchModal, type SetlistSongData } from './SearchModal'
 import { parseContent } from '../utils/parser'
+import { songCache } from '../cache/songCache'
 
 interface SetlistSongInfo {
   songId: string
@@ -280,6 +281,15 @@ export function SetlistViewer({
     loadSetlist()
   }, [loadSetlist])
 
+  // Prefetch de todas as músicas do setlist em background
+  // Limpa cache anterior (1 setlist por vez = memória controlada)
+  // Quando o usuário navegar, a música já estará no cache = ZERO loading
+  useEffect(() => {
+    if (!setlist || setlist.songs.length === 0) return
+    const songIds = setlist.songs.map(s => s.songId)
+    songCache.prefetchSetlist(songIds)
+  }, [setlist])
+
   // Atalhos de teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -447,7 +457,7 @@ export function SetlistViewer({
                       <button
                         onClick={() => handleMoveItem(index, 'up')}
                         disabled={index === 0}
-                        className="p-0.5 text-neutral-600 hover:text-white disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                        className="p-0.5 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         title="Mover para cima"
                       >
                         {Icons.arrowUp}
@@ -455,7 +465,7 @@ export function SetlistViewer({
                       <button
                         onClick={() => handleMoveItem(index, 'down')}
                         disabled={index === setlist.songs.length - 1}
-                        className="p-0.5 text-neutral-600 hover:text-white disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                        className="p-0.5 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         title="Mover para baixo"
                       >
                         {Icons.arrowDown}
@@ -476,7 +486,7 @@ export function SetlistViewer({
                           Notas
                         </span>
                       ) : (
-                        <span className="px-2 py-1 bg-neutral-800 text-neutral-600 rounded text-sm font-mono">
+                        <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
                           Notas
                         </span>
                       )}
@@ -492,7 +502,7 @@ export function SetlistViewer({
 
                     <button
                       onClick={() => setEditingItem(item)}
-                      className="p-2 text-neutral-500 hover:text-white cursor-pointer"
+                      className="p-2 text-neutral-400 hover:text-white cursor-pointer"
                       title="Editar"
                     >
                       {Icons.editSmall}
@@ -500,7 +510,7 @@ export function SetlistViewer({
 
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="p-2 text-neutral-500 hover:text-red-400 cursor-pointer"
+                      className="p-2 text-neutral-400 hover:text-red-400 cursor-pointer"
                       title="Remover"
                     >
                       {Icons.remove}

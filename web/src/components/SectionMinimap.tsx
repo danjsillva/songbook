@@ -29,17 +29,15 @@ export function SectionMinimap({ content, currentSection, onNavigate }: SectionM
     return result
   }, [content])
 
-  // Navegação por teclado (setas cima/baixo)
+  // Navegação por teclado (Space/Shift+Space, sem cycling)
   const navigatePrev = useCallback(() => {
-    if (sections.length === 0) return
-    const prevIndex = currentSection > 0 ? currentSection - 1 : sections.length - 1
-    onNavigate(sections[prevIndex].lineIndex)
+    if (sections.length === 0 || currentSection <= 0) return
+    onNavigate(sections[currentSection - 1].lineIndex)
   }, [sections, currentSection, onNavigate])
 
   const navigateNext = useCallback(() => {
-    if (sections.length === 0) return
-    const nextIndex = currentSection < sections.length - 1 ? currentSection + 1 : 0
-    onNavigate(sections[nextIndex].lineIndex)
+    if (sections.length === 0 || currentSection >= sections.length - 1) return
+    onNavigate(sections[currentSection + 1].lineIndex)
   }, [sections, currentSection, onNavigate])
 
   useEffect(() => {
@@ -47,12 +45,13 @@ export function SectionMinimap({ content, currentSection, onNavigate }: SectionM
       // Ignorar se estiver em input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
-      if (e.key === 'ArrowUp') {
+      if (e.key === ' ') {
         e.preventDefault()
-        navigatePrev()
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        navigateNext()
+        if (e.shiftKey) {
+          navigatePrev()
+        } else {
+          navigateNext()
+        }
       }
     }
 
@@ -63,7 +62,7 @@ export function SectionMinimap({ content, currentSection, onNavigate }: SectionM
   if (sections.length === 0) return null
 
   return (
-    <div className="fixed left-20 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-40 py-8">
+    <div className="flex flex-col gap-2">
       {sections.map((section, index) => {
         const isActive = currentSection === index
         const color = getSectionColor(section.section)
@@ -78,12 +77,12 @@ export function SectionMinimap({ content, currentSection, onNavigate }: SectionM
             title={section.section}
           >
             <span
-              className={`w-4 h-4 rounded-full ${
-                isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900' : ''
+              className={`w-3 h-3 rounded-full ${
+                isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-950' : ''
               }`}
               style={{ backgroundColor: color }}
             />
-            <span className="absolute left-6 hidden group-hover:block text-xs font-medium text-neutral-300 bg-neutral-800 px-2 py-0.5 rounded whitespace-nowrap">
+            <span className="absolute right-5 hidden group-hover:block text-xs font-medium text-neutral-300 bg-neutral-800 px-2 py-0.5 rounded whitespace-nowrap z-10">
               {section.section}
             </span>
           </button>

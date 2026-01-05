@@ -169,14 +169,12 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
                   <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Visualizacao</div>
                   <Shortcut keys="0" label="Aumentar fonte" />
                   <Shortcut keys="9" label="Diminuir fonte" />
-                  <Shortcut keys="Space" label="Rolar baixo" />
-                  <Shortcut keys="Shift Space" label="Rolar cima" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-amber-500 font-medium text-xs uppercase tracking-wide">Navegacao</div>
-                  <Shortcut keys="↑" label="Secao anterior" />
-                  <Shortcut keys="↓" label="Proxima secao" />
+                  <Shortcut keys="Space" label="Proxima secao" />
+                  <Shortcut keys="⇧ Space" label="Secao anterior" />
                   <Shortcut keys="n" label="Toggle notas" />
                   <Shortcut keys="1-5" label="Ir para musica" />
                 </div>

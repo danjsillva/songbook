@@ -169,7 +169,7 @@ export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized }: No
               <button
                 onClick={handleSave}
                 disabled={!hasChanges}
-                className="p-2 text-amber-400 hover:text-amber-300 disabled:text-neutral-600 rounded-lg hover:bg-neutral-800 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+                className="p-2 text-amber-400 hover:text-amber-300 disabled:text-neutral-500 disabled:opacity-50 rounded-lg hover:bg-neutral-800 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
                 title="Salvar"
               >
                 {Icons.save}
@@ -206,7 +206,7 @@ Refrao: aumentar dinamica"
         ) : (
           <div className="font-mono space-y-0.5">
             {parsedLines.length === 0 ? (
-              <div className="text-neutral-500 text-sm">
+              <div className="text-neutral-400 text-sm">
                 {onSave ? 'Clique em editar para adicionar notas' : 'Sem notas'}
               </div>
             ) : (
