@@ -59,14 +59,6 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-6 border-b border-neutral-800">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold">Songbook</h1>
-          <p className="text-neutral-400 mt-1">Suas musicas e setlists</p>
-        </div>
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {!hasRecent ? (
@@ -75,7 +67,7 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
               Nenhum item recente
             </div>
             <div className="text-neutral-600 text-sm">
-              Use os icones na barra lateral para buscar musicas e setlists
+              Use a lupa para buscar musicas e setlists
             </div>
           </div>
         ) : (

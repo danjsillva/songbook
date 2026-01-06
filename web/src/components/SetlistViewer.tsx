@@ -20,8 +20,7 @@ interface SetlistViewerProps {
   onEdit: () => void
   onViewSong: (songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[]) => void
   onHome: () => void
-  onSearchSongs: () => void
-  onSearchSetlists: () => void
+  onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
 }
@@ -244,8 +243,7 @@ export function SetlistViewer({
   onEdit,
   onViewSong,
   onHome,
-  onSearchSongs,
-  onSearchSetlists,
+  onSearch,
   onAddSong,
   onAddSetlist
 }: SetlistViewerProps) {
@@ -386,7 +384,7 @@ export function SetlistViewer({
 
   if (loading) {
     return (
-      <Layout onHome={onHome} onSearchSongs={onSearchSongs} onSearchSetlists={onSearchSetlists} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Carregando..." onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Carregando...</div>
         </div>
@@ -396,7 +394,7 @@ export function SetlistViewer({
 
   if (!setlist) {
     return (
-      <Layout onHome={onHome} onSearchSongs={onSearchSongs} onSearchSetlists={onSearchSetlists} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Erro" onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Setlist nao encontrado</div>
         </div>
@@ -406,28 +404,24 @@ export function SetlistViewer({
 
   return (
     <Layout
+      title={setlist.name}
+      subtitle={formatDate(setlist.date)}
       onHome={onHome}
-      onSearchSongs={onSearchSongs}
-      onSearchSetlists={onSearchSetlists}
+      onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
     >
       <div className="h-screen flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-neutral-800">
-          <div className="max-w-4xl mx-auto flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-semibold">{setlist.name}</h1>
-                <button
-                  onClick={onEdit}
-                  className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
-                  title="Editar"
-                >
-                  {Icons.edit}
-                </button>
-              </div>
-              <p className="text-neutral-400">{formatDate(setlist.date)}</p>
-            </div>
+        {/* Header com botoes */}
+        <div className="px-6 py-3 border-b border-neutral-800">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <button
+              onClick={onEdit}
+              className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
+              title="Editar"
+            >
+              {Icons.edit}
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg flex items-center gap-2 transition-colors text-sm uppercase tracking-wide cursor-pointer"

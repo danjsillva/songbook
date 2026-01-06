@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Song, SongLine } from '@songbook/shared'
 import { getSectionColor } from '@songbook/shared'
 import { transposeChord, getKeyFromSemitones, getSemitonesBetweenKeys } from '../utils/transpose'
-import { Layout, SidebarButton } from './Layout'
+import { Layout } from './Layout'
+import { FloatingControls } from './FloatingControls'
 import { NotesSidebar } from './NotesSidebar'
 import { SectionMinimap } from './SectionMinimap'
-import { useClickOutside } from '../hooks/useClickOutside'
 import { api } from '../api/client'
 
 interface SetlistSongInfo {
@@ -21,8 +21,7 @@ interface SongViewerProps {
   onBack: () => void
   onEdit: () => void
   onHome: () => void
-  onSearchSongs: () => void
-  onSearchSetlists: () => void
+  onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
   initialTranspose?: string | null
@@ -36,83 +35,6 @@ interface SongViewerProps {
 }
 
 type AccidentalPreference = 'sharp' | 'flat'
-
-const Icons = {
-  edit: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  ),
-  plus: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  ),
-  minus: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-    </svg>
-  ),
-  youtube: (
-    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-    </svg>
-  ),
-  arrowLeft: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  ),
-  arrowRight: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  ),
-}
-
-const ALL_KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-
-interface KeySelectorProps {
-  currentKey: string
-  onSelectKey: (key: string) => void
-  onClose: () => void
-}
-
-function KeySelector({ currentKey, onSelectKey, onClose }: KeySelectorProps) {
-  const ref = useClickOutside<HTMLDivElement>(onClose)
-  const currentRoot = currentKey.replace('m', '').replace('M', '')
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
-  return (
-    <div
-      ref={ref}
-      className="fixed left-[72px] top-1/2 -translate-y-1/2 bg-neutral-800 border border-neutral-700 rounded-xl p-3 shadow-xl z-50"
-    >
-      <div className="grid grid-cols-4 gap-2 w-max">
-        {ALL_KEYS.map(key => (
-          <button
-            key={key}
-            onClick={() => onSelectKey(key)}
-            className={`w-11 h-11 rounded-lg text-sm font-mono transition-colors cursor-pointer flex items-center justify-center ${
-              currentRoot === key
-                ? 'bg-amber-600 text-white'
-                : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
-            }`}
-          >
-            {key}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 const ChordLine = React.forwardRef<HTMLDivElement, {
   line: SongLine
@@ -148,7 +70,7 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
   return (
     <div
       ref={ref}
-      className="leading-relaxed"
+      className="leading-relaxed scroll-mt-20"
     >
       {line.section && (
         <span
@@ -176,8 +98,7 @@ export function SongViewer({
   onBack,
   onEdit,
   onHome,
-  onSearchSongs,
-  onSearchSetlists,
+  onSearch,
   onAddSong,
   onAddSetlist,
   initialTranspose,
@@ -197,7 +118,6 @@ export function SongViewer({
   })
   const [fontSize, setFontSize] = useState(18)
   const [preference] = useState<AccidentalPreference>('sharp')
-  const [showKeySelector, setShowKeySelector] = useState(false)
   const [localNotes, setLocalNotes] = useState(notes || '')
   const [notesMinimized, setNotesMinimized] = useState(!notes?.trim())
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
@@ -232,7 +152,7 @@ export function SongViewer({
 
   // Foco automático no container ao entrar na música
   useEffect(() => {
-    contentRef.current?.focus()
+    contentRef.current?.focus({ preventScroll: true })
   }, [song.id])
 
   // Posição atual no setlist e navegação
@@ -266,7 +186,6 @@ export function SongViewer({
     if (song.originalKey) {
       setTranspose(getSemitonesBetweenKeys(song.originalKey, key))
     }
-    setShowKeySelector(false)
   }
 
   // Scroll to section
@@ -281,7 +200,7 @@ export function SongViewer({
     isNavigatingRef.current = true
 
     const lineEl = lineRefs.current[lineIndex]
-    if (lineEl && contentRef.current) {
+    if (lineEl) {
       lineEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
@@ -343,8 +262,6 @@ export function SongViewer({
   }, [sectionIndices])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (showKeySelector) return
-
     // Ignorar se estiver em input/textarea
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
@@ -396,152 +313,75 @@ export function SongViewer({
         }
         break
     }
-  }, [onBack, showKeySelector, setlistItemId, setlistSongs, onNavigateToSong, song.id])
+  }, [onBack, setlistItemId, setlistSongs, onNavigateToSong])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  const pageControls = (
-    <>
-      {/* Controles de fonte */}
-      <SidebarButton onClick={() => setFontSize(s => Math.max(12, s - 2))} title="Diminuir fonte">
-        <span className="text-xs font-bold">A-</span>
-      </SidebarButton>
-      <SidebarButton onClick={() => setFontSize(s => Math.min(32, s + 2))} title="Aumentar fonte">
-        <span className="text-sm font-bold">A+</span>
-      </SidebarButton>
-
-      {/* Tom atual */}
-      <div className="relative">
-        <button
-          onClick={() => setShowKeySelector(!showKeySelector)}
-          title="Selecionar tom"
-          className="w-12 h-12 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 rounded-xl text-sm font-mono font-bold text-amber-400 transition-colors cursor-pointer"
-        >
-          {currentKey}
-        </button>
-        {showKeySelector && (
-          <KeySelector
-            currentKey={currentKey}
-            onSelectKey={handleSelectKey}
-            onClose={() => setShowKeySelector(false)}
-          />
-        )}
-      </div>
-
-      {/* Transposicao */}
-      <SidebarButton onClick={() => setTranspose(t => t - 1)} title="Transpor -1 (-)">
-        {Icons.minus}
-      </SidebarButton>
-      <SidebarButton onClick={() => setTranspose(t => t + 1)} title="Transpor +1 (+)">
-        {Icons.plus}
-      </SidebarButton>
-
-      {song.youtubeUrl && (
-        <a
-          href={song.youtubeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-12 h-12 flex items-center justify-center rounded-xl transition-colors hover:bg-neutral-800 text-red-500 hover:text-red-400 cursor-pointer"
-          title="Abrir no YouTube"
-        >
-          {Icons.youtube}
-        </a>
-      )}
-    </>
-  )
+  // Preparar props do setlistNav para a TopBar
+  const setlistNav = currentPosition >= 0 && setlistSongs ? {
+    current: currentPosition + 1,
+    total: setlistSongs.length,
+    onPrev: () => handleNavigate('prev'),
+    onNext: () => handleNavigate('next'),
+    canGoPrev,
+    canGoNext,
+  } : undefined
 
   return (
     <Layout
+      title={song.title}
+      subtitle={song.artist}
       onHome={onHome}
-      onSearchSongs={onSearchSongs}
-      onSearchSetlists={onSearchSetlists}
+      onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
-      pageControls={pageControls}
+      onEdit={onEdit}
+      setlistNav={setlistNav}
+      bpm={bpmOverride || song.bpm}
+      originalKey={song.originalKey}
     >
-      {/* Header */}
-      <div className="p-6 border-b border-neutral-800">
-        <div className="max-w-4xl mx-auto relative">
-          {/* Navegação do setlist - posicionada à esquerda do container */}
-          {currentPosition >= 0 && setlistSongs && (
-            <div className="absolute right-full pr-4 top-1 flex items-center gap-1">
-              <button
-                onClick={() => handleNavigate('prev')}
-                disabled={!canGoPrev}
-                className="p-1 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                title="Música anterior"
-              >
-                {Icons.arrowLeft}
-              </button>
-              <span className="text-neutral-500 text-lg font-semibold min-w-[3rem] text-center">
-                {currentPosition + 1}/{setlistSongs.length}
-              </span>
-              <button
-                onClick={() => handleNavigate('next')}
-                disabled={!canGoNext}
-                className="p-1 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                title="Próxima música"
-              >
-                {Icons.arrowRight}
-              </button>
-            </div>
-          )}
-
-          {/* Conteúdo principal */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-semibold">{song.title}</h1>
-                <button
-                  onClick={onEdit}
-                  className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
-                  title="Editar"
-                >
-                  {Icons.edit}
-                </button>
-              </div>
-              <span className="text-neutral-400">{song.artist}</span>
-            </div>
-
-            <div className="flex gap-2 flex-shrink-0">
-              {setlistItemId && (
-                localNotes ? (
-                  <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
-                    Notas
-                  </span>
-                ) : (
-                  <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
-                    Notas
-                  </span>
-                )
-              )}
-              {(bpmOverride || song.bpm) && (
-                <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                  {bpmOverride || song.bpm} BPM
-                </span>
-              )}
-              {song.originalKey && (
-                <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
-                  {song.originalKey}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* FloatingControls - fixed relativo ao viewport */}
+      <div
+        className="fixed z-40 left-1/2 flex justify-end pr-5"
+        style={{ top: 'calc(3rem + 1.5rem)', marginLeft: 'calc(-28rem - 8rem)', width: '8rem' }}
+      >
+        <FloatingControls
+          currentKey={currentKey}
+          onTransposeDown={() => setTranspose(t => t - 1)}
+          onTransposeUp={() => setTranspose(t => t + 1)}
+          onKeySelect={handleSelectKey}
+          onFontDecrease={() => setFontSize(s => Math.max(12, s - 2))}
+          onFontIncrease={() => setFontSize(s => Math.min(32, s + 2))}
+          youtubeUrl={song.youtubeUrl}
+        />
       </div>
 
-      {/* Conteudo */}
+      {/* Section Minimap - fixed relativo ao viewport */}
+      {sectionIndices.length > 0 && (
+        <div
+          className="fixed z-40 left-1/2 flex justify-start pl-5"
+          style={{ top: 'calc(3rem + 1.5rem)', marginLeft: '28rem', width: '8rem' }}
+        >
+          <SectionMinimap
+            content={song.content}
+            currentSection={currentSectionIndex}
+            onNavigate={handleNavigateToSection}
+          />
+        </div>
+      )}
+
+      {/* Conteudo scrollável */}
       <div
         ref={contentRef}
         tabIndex={0}
-        className="p-6 overflow-auto outline-none"
-        style={{ fontSize: `${fontSize}px`, height: 'calc(100vh - 100px)' }}
+        className="flex-1 p-6 overflow-auto outline-none"
+        style={{ fontSize: `${fontSize}px` }}
       >
-        <div className="max-w-4xl mx-auto flex gap-4">
-          <div className="font-mono space-y-1 flex-1">
+        <div className="max-w-4xl mx-auto">
+          <div className="font-mono space-y-1">
             {song.content.map((line, i) => (
               <ChordLine
                 key={i}
@@ -552,19 +392,6 @@ export function SongViewer({
               />
             ))}
           </div>
-
-          {/* Section Minimap - à direita da cifra, centralizado */}
-          {sectionIndices.length > 0 && (
-            <div className="flex-shrink-0 h-0 sticky top-1/2">
-              <div className="-translate-y-1/2">
-                <SectionMinimap
-                  content={song.content}
-                  currentSection={currentSectionIndex}
-                  onNavigate={handleNavigateToSection}
-                />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

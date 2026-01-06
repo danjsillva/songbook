@@ -8,8 +8,7 @@ interface SetlistFormProps {
   onSaved: (id: string) => void
   onDelete?: () => void
   onHome: () => void
-  onSearchSongs: () => void
-  onSearchSetlists: () => void
+  onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
 }
@@ -33,8 +32,7 @@ export function SetlistForm({
   onSaved,
   onDelete,
   onHome,
-  onSearchSongs,
-  onSearchSetlists,
+  onSearch,
   onAddSong,
   onAddSetlist
 }: SetlistFormProps) {
@@ -120,7 +118,7 @@ export function SetlistForm({
 
   if (loading) {
     return (
-      <Layout onHome={onHome} onSearchSongs={onSearchSongs} onSearchSetlists={onSearchSetlists} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Carregando..." onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Carregando...</div>
         </div>
@@ -130,19 +128,16 @@ export function SetlistForm({
 
   return (
     <Layout
+      title={isEditing ? 'Editar Setlist' : 'Novo Setlist'}
       onHome={onHome}
-      onSearchSongs={onSearchSongs}
-      onSearchSetlists={onSearchSetlists}
+      onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
-      backButton={{ onClick: onBack }}
     >
       <div className="h-screen flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-neutral-800">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <h1 className="text-xl font-semibold">
-              {isEditing ? 'Editar Setlist' : 'Novo Setlist'}
-            </h1>
+        {/* Header com acoes */}
+        <div className="px-6 py-3 border-b border-neutral-800">
+          <div className="max-w-4xl mx-auto flex items-center justify-end">
             <div className="flex items-center gap-2">
               {isEditing && onDelete && (
                 <button

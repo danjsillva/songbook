@@ -60,8 +60,7 @@ function App() {
       setSongNotes(null)
       setView('dashboard')
     }, []),
-    onSearchSongs: useCallback(() => setModalType('songs'), []),
-    onSearchSetlists: useCallback(() => setModalType('setlists'), []),
+    onSearch: useCallback(() => setModalType('songs'), []),
     onAddSong: useCallback(() => setView('add-song'), []),
     onAddSetlist: useCallback(() => setView('add-setlist'), []),
   }
@@ -157,11 +156,12 @@ function App() {
 
   const renderModals = () => (
     <>
-      {modalType === 'songs' && (
-        <SearchModal type="songs" onClose={() => setModalType(null)} onSelectSong={handleModalSelectSong} />
-      )}
-      {modalType === 'setlists' && (
-        <SearchModal type="setlists" onClose={() => setModalType(null)} onSelectSetlist={handleModalSelectSetlist} />
+      {modalType && (
+        <SearchModal
+          onClose={() => setModalType(null)}
+          onSelectSong={handleModalSelectSong}
+          onSelectSetlist={handleModalSelectSetlist}
+        />
       )}
     </>
   )
@@ -224,7 +224,7 @@ function App() {
   // Loading song
   if ((view === 'view-song' || view === 'edit-song') && loadingSong) {
     return (
-      <Layout {...navCallbacks}>
+      <Layout title="Carregando..." {...navCallbacks}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Carregando...</div>
         </div>
@@ -274,7 +274,7 @@ function App() {
 
   // Dashboard (default)
   return (
-    <Layout {...navCallbacks}>
+    <Layout title="Songbook" subtitle="Suas musicas e setlists" {...navCallbacks}>
       <Dashboard
         onSelectSong={handleSelectSong}
         onSelectSetlist={handleSelectSetlist}

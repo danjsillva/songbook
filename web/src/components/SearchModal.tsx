@@ -22,7 +22,7 @@ export interface SetlistSongData {
 }
 
 interface SearchModalProps {
-  type: 'songs' | 'setlists'
+  type?: 'songs' | 'setlists'
   onClose: () => void
   onSelectSong?: (song: SongListItem) => void
   onSelectSetlist?: (setlist: SetlistListItem) => void
@@ -78,16 +78,18 @@ function NotesPreview({ lines }: { lines: SongLine[] }) {
 }
 
 export function SearchModal({
-  type,
+  type = 'songs',
   onClose,
   onSelectSong,
   onSelectSetlist,
   onSelectSongWithDetails,
 }: SearchModalProps) {
+  const [searchType, setSearchType] = useState<'songs' | 'setlists'>(type)
   const [query, setQuery] = useState('')
   const [songs, setSongs] = useState<SongListItem[]>([])
   const [setlists, setSetlists] = useState<SetlistListItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingSongs, setLoadingSongs] = useState(true)
+  const [loadingSetlists, setLoadingSetlists] = useState(true)
   const [selectedSong, setSelectedSong] = useState<SongListItem | null>(null)
   const [key, setKey] = useState('')
   const [bpm, setBpm] = useState('')
@@ -106,19 +108,19 @@ export function SearchModal({
     inputRef.current?.focus()
   }, [])
 
+  // Carrega ambos os dados ao abrir
   useEffect(() => {
-    if (type === 'songs') {
-      api.songs.list().then((data) => {
-        setSongs(data)
-        setLoading(false)
-      })
-    } else {
-      api.setlists.list().then((data) => {
-        setSetlists(data)
-        setLoading(false)
-      })
-    }
-  }, [type])
+    api.songs.list().then((data) => {
+      setSongs(data)
+      setLoadingSongs(false)
+    })
+    api.setlists.list().then((data) => {
+      setSetlists(data)
+      setLoadingSetlists(false)
+    })
+  }, [])
+
+  const loading = searchType === 'songs' ? loadingSongs : loadingSetlists
 
   // Fechar com ESC - memoizado para evitar re-bindind desnecessário
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -173,9 +175,9 @@ export function SearchModal({
     }
   }
 
-  const title = type === 'songs'
-    ? (selectedSong ? 'Adicionar ao Setlist' : 'Buscar Musica')
-    : 'Buscar Setlist'
+  const title = searchType === 'songs'
+    ? (selectedSong ? 'Adicionar ao Setlist' : 'Buscar')
+    : 'Buscar'
 
   return (
     <div
@@ -187,8 +189,34 @@ export function SearchModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-neutral-700 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-100">{title}</h2>
+        <div className="p-4 border-b border-neutral-700 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-neutral-100">{title}</h2>
+            {!selectedSong && (
+              <div className="flex bg-neutral-800 rounded-lg p-1">
+                <button
+                  onClick={() => { setSearchType('songs'); setQuery('') }}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
+                    searchType === 'songs'
+                      ? 'bg-amber-600 text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Musicas
+                </button>
+                <button
+                  onClick={() => { setSearchType('setlists'); setQuery('') }}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
+                    searchType === 'setlists'
+                      ? 'bg-amber-600 text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Setlists
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
@@ -292,7 +320,7 @@ Intro suave"
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={type === 'songs' ? 'Buscar musica...' : 'Buscar setlist...'}
+                  placeholder={searchType === 'songs' ? 'Buscar musica...' : 'Buscar setlist...'}
                   className="w-full pl-10 pr-4 py-3 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
                 />
               </div>
@@ -302,7 +330,7 @@ Intro suave"
             <div className="flex-1 overflow-auto">
               {loading ? (
                 <div className="p-8 text-center text-neutral-500">Carregando...</div>
-              ) : type === 'songs' ? (
+              ) : searchType === 'songs' ? (
                 filteredSongs.length === 0 ? (
                   <div className="p-8 text-center text-neutral-500">Nenhuma musica encontrada</div>
                 ) : (
