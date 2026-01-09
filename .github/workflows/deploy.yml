@@ -6,8 +6,29 @@ on:
       - main
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'shared/**'
+            web:
+              - 'web/**'
+              - 'shared/**'
+
   deploy-api:
     name: Deploy API
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +39,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci --include=optional
+        run: npm ci
 
       - name: Deploy to Cloudflare Workers
         working-directory: ./api
@@ -28,6 +49,8 @@ jobs:
 
   deploy-web:
     name: Deploy Web
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +61,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci --include=optional
+        run: rm -rf node_modules package-lock.json && npm install
 
       - name: Build
         working-directory: ./web
