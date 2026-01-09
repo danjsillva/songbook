@@ -346,7 +346,7 @@ export function SongViewer({
       {/* FloatingControls - fixed relativo ao viewport */}
       <div
         className="fixed z-40 left-1/2 flex justify-end pr-5"
-        style={{ top: 'calc(3rem + 1.5rem)', marginLeft: 'calc(-28rem - 8rem)', width: '8rem' }}
+        style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-28rem - 8rem)', width: '8rem' }}
       >
         <FloatingControls
           currentKey={currentKey}
@@ -355,7 +355,7 @@ export function SongViewer({
           onKeySelect={handleSelectKey}
           onFontDecrease={() => setFontSize(s => Math.max(12, s - 2))}
           onFontIncrease={() => setFontSize(s => Math.min(32, s + 2))}
-          youtubeUrl={song.youtubeUrl}
+          youtubeUrl={song.youtubeUrl || undefined}
         />
       </div>
 
@@ -363,7 +363,7 @@ export function SongViewer({
       {sectionIndices.length > 0 && (
         <div
           className="fixed z-40 left-1/2 flex justify-start pl-5"
-          style={{ top: 'calc(3rem + 1.5rem)', marginLeft: '28rem', width: '8rem' }}
+          style={{ top: 'calc(3rem + 3rem)', marginLeft: '28rem', width: '8rem' }}
         >
           <SectionMinimap
             content={song.content}

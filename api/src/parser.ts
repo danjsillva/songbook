@@ -1,8 +1,9 @@
 import type { SongLine, ChordPosition } from '@songbook/shared'
+import { chordParserFactory } from 'chord-symbol'
 
-// Regex para detectar acordes
-// Suporta: C, Cm, C7, Cmaj7, C#, Bb, C/G, C#m7/G#, etc.
-const CHORD_REGEX = /^[A-G][#b]?(m|dim|aug|maj|sus|add)?\d*(\([^)]+\))?(\/[A-G][#b]?)?$/
+// Cria o parser de acordes usando a biblioteca chord-symbol
+// que suporta 37.000+ variações de acordes
+const parseChord = chordParserFactory()
 
 // Detecta se uma linha é um marcador de seção [qualquer texto]
 function parseSectionMarker(line: string): string | null {
@@ -15,7 +16,9 @@ function parseSectionMarker(line: string): string | null {
 }
 
 function isChordToken(token: string): boolean {
-  return CHORD_REGEX.test(token.trim())
+  const result = parseChord(token.trim())
+  // Se não tem 'error' no resultado, é um acorde válido
+  return !('error' in result)
 }
 
 function isChordLine(line: string): boolean {

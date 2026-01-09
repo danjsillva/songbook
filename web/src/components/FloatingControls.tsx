@@ -91,7 +91,7 @@ export function FloatingControls({
 
   return (
     <div className="z-40">
-      <div className="flex flex-col gap-1 p-2 rounded-xl bg-neutral-900 border border-neutral-700">
+      <div className="flex flex-col gap-1 p-2 rounded-xl bg-neutral-900 border border-neutral-800">
         {/* Transposicao */}
         <button
           onClick={onTransposeDown}

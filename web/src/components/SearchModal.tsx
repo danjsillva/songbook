@@ -122,7 +122,7 @@ export function SearchModal({
 
   const loading = searchType === 'songs' ? loadingSongs : loadingSetlists
 
-  // Fechar com ESC - memoizado para evitar re-bindind desnecessário
+  // Atalhos de teclado
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation()
@@ -131,6 +131,12 @@ export function SearchModal({
       } else {
         onClose()
       }
+    }
+    // Tab alterna entre músicas e setlists (só quando não está na tela de detalhes)
+    if (e.key === 'Tab' && !selectedSong) {
+      e.preventDefault()
+      setSearchType(prev => prev === 'songs' ? 'setlists' : 'songs')
+      setQuery('')
     }
   }, [onClose, selectedSong])
 
@@ -181,11 +187,11 @@ export function SearchModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 pt-20 px-4 pb-4"
       onClick={onClose}
     >
       <div
-        className="bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[85vh] flex flex-col"
+        className="bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[calc(100vh-6rem)] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
