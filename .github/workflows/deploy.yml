@@ -21,9 +21,11 @@ jobs:
             api:
               - 'api/**'
               - 'shared/**'
+              - '.github/workflows/**'
             web:
               - 'web/**'
               - 'shared/**'
+              - '.github/workflows/**'
 
   deploy-api:
     name: Deploy API
