@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api/client'
 import { parseContent } from '../utils/parser'
 import { contentToText } from '../utils/contentToText'
@@ -113,6 +113,44 @@ export function SongForm({
   const [error, setError] = useState<string | null>(null)
   const [extractUrl, setExtractUrl] = useState('')
   const [extracting, setExtracting] = useState(false)
+
+  // Refs para scroll sync
+  const editorRef = useRef<HTMLTextAreaElement>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
+  const isScrollingRef = useRef<'editor' | 'preview' | null>(null)
+
+  // Scroll sync entre editor e preview
+  const handleEditorScroll = useCallback(() => {
+    if (isScrollingRef.current === 'preview') return
+    isScrollingRef.current = 'editor'
+
+    const editor = editorRef.current
+    const preview = previewRef.current
+    if (!editor || !preview) return
+
+    const editorScrollRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight || 1)
+    preview.scrollTop = editorScrollRatio * (preview.scrollHeight - preview.clientHeight)
+
+    requestAnimationFrame(() => {
+      isScrollingRef.current = null
+    })
+  }, [])
+
+  const handlePreviewScroll = useCallback(() => {
+    if (isScrollingRef.current === 'editor') return
+    isScrollingRef.current = 'preview'
+
+    const editor = editorRef.current
+    const preview = previewRef.current
+    if (!editor || !preview) return
+
+    const previewScrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1)
+    editor.scrollTop = previewScrollRatio * (editor.scrollHeight - editor.clientHeight)
+
+    requestAnimationFrame(() => {
+      isScrollingRef.current = null
+    })
+  }, [])
 
   useEffect(() => {
     if (song) {
@@ -387,8 +425,10 @@ export function SongForm({
                   <label className="text-sm text-neutral-400">Cifra *</label>
                 </div>
                 <textarea
+                  ref={editorRef}
                   value={html}
                   onChange={(e) => setHtml(e.target.value)}
+                  onScroll={handleEditorScroll}
                   placeholder={`Cole aqui a cifra copiada do Cifra Club ou similar...
 
 Exemplo:
@@ -414,7 +454,11 @@ E porque eu te amo`}
                     </div>
                   )}
                 </div>
-                <div className="h-[calc(100vh-340px)] min-h-[300px] overflow-auto p-4 bg-neutral-900 border border-neutral-700 rounded-lg">
+                <div
+                  ref={previewRef}
+                  onScroll={handlePreviewScroll}
+                  className="h-[calc(100vh-340px)] min-h-[300px] overflow-auto p-4 bg-neutral-900 border border-neutral-700 rounded-lg"
+                >
                   <Preview lines={parsedLines} />
                 </div>
               </div>
