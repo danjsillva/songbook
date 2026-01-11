@@ -40,7 +40,8 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
   line: SongLine
   transpose: number
   preference: AccidentalPreference
-}>(({ line, transpose, preference }, ref) => {
+  isFirstLine: boolean
+}>(({ line, transpose, preference, isFirstLine }, ref) => {
   if (line.chords.length === 0 && !line.lyrics && !line.section) {
     return <div ref={ref} className="h-4" />
   }
@@ -67,10 +68,13 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
 
   const sectionColor = line.section ? getSectionColor(line.section) : ''
 
+  // Margem apenas em seções que não são a primeira linha
+  const needsTopMargin = line.section && !isFirstLine
+
   return (
     <div
       ref={ref}
-      className="leading-relaxed scroll-mt-20"
+      className={`leading-relaxed ${needsTopMargin ? 'mt-6' : ''}`}
     >
       {line.section && (
         <span
@@ -188,23 +192,34 @@ export function SongViewer({
     }
   }
 
-  // Scroll to section
+  // Posição alvo: 24px do topo do container (igual ao padding p-6)
+  const TARGET_OFFSET = 24
+
+  // Scroll to section - posiciona TODAS as seções no MESMO pixel exato
   const handleNavigateToSection = useCallback((lineIndex: number) => {
-    // Atualiza o índice da seção diretamente
     const sectionIdx = sectionIndices.indexOf(lineIndex)
     if (sectionIdx !== -1) {
       setCurrentSectionIndex(sectionIdx)
     }
 
-    // Bloqueia o scroll handler temporariamente
     isNavigatingRef.current = true
 
+    const container = contentRef.current
     const lineEl = lineRefs.current[lineIndex]
-    if (lineEl) {
-      lineEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+    if (container && lineEl) {
+      // Usar getBoundingClientRect para cálculo preciso
+      const containerRect = container.getBoundingClientRect()
+      const lineRect = lineEl.getBoundingClientRect()
+
+      // Posição atual do elemento relativa ao container + scroll atual
+      const lineTopRelative = lineRect.top - containerRect.top + container.scrollTop
+
+      // Scroll para que o elemento fique exatamente em TARGET_OFFSET
+      const scrollTop = lineTopRelative - TARGET_OFFSET
+      container.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' })
     }
 
-    // Libera o scroll handler após a animação
     setTimeout(() => {
       isNavigatingRef.current = false
     }, 500)
@@ -389,6 +404,7 @@ export function SongViewer({
                 line={line}
                 transpose={transpose}
                 preference={preference}
+                isFirstLine={i === 0}
               />
             ))}
           </div>

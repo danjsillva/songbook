@@ -38,7 +38,7 @@ export function Layout({
   originalKey,
 }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
+    <div className="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-hidden">
       <TopBar
         title={title}
         subtitle={subtitle}
@@ -51,7 +51,7 @@ export function Layout({
         bpm={bpm}
         originalKey={originalKey}
       />
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col">
         {children}
       </main>
     </div>
