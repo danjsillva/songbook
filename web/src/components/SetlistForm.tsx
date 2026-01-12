@@ -7,7 +7,6 @@ interface SetlistFormProps {
   onBack: () => void
   onSaved: (id: string) => void
   onDelete?: () => void
-  onHome: () => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -31,7 +30,6 @@ export function SetlistForm({
   onBack,
   onSaved,
   onDelete,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist
@@ -118,7 +116,7 @@ export function SetlistForm({
 
   if (loading) {
     return (
-      <Layout title="Carregando..." onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Carregando..." onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Carregando...</div>
         </div>
@@ -129,7 +127,6 @@ export function SetlistForm({
   return (
     <Layout
       title={isEditing ? 'Editar Setlist' : 'Novo Setlist'}
-      onHome={onHome}
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}

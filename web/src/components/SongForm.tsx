@@ -11,7 +11,6 @@ interface SongFormProps {
   onBack: () => void
   onSaved: (id: string) => void
   onDelete?: () => void
-  onHome: () => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -95,7 +94,6 @@ export function SongForm({
   onBack,
   onSaved,
   onDelete,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist
@@ -270,7 +268,6 @@ export function SongForm({
   return (
     <Layout
       title={isEditing ? 'Editar Musica' : 'Nova Musica'}
-      onHome={onHome}
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}

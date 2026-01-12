@@ -14,7 +14,6 @@ interface LayoutProps {
   children: ReactNode
   title: string
   subtitle?: string
-  onHome: () => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -28,7 +27,6 @@ export function Layout({
   children,
   title,
   subtitle,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist,
@@ -42,7 +40,6 @@ export function Layout({
       <TopBar
         title={title}
         subtitle={subtitle}
-        onHome={onHome}
         onSearch={onSearch}
         onAddSong={onAddSong}
         onAddSetlist={onAddSetlist}

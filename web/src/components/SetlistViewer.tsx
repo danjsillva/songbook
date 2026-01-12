@@ -18,8 +18,7 @@ interface SetlistViewerProps {
   setlistId: string
   onBack: () => void
   onEdit: () => void
-  onViewSong: (songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[]) => void
-  onHome: () => void
+  onViewSong: (songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[], position?: number) => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -242,7 +241,6 @@ export function SetlistViewer({
   onBack,
   onEdit,
   onViewSong,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist
@@ -312,7 +310,7 @@ export function SetlistViewer({
             const index = parseInt(e.key) - 1
             const item = setlist.songs[index]
             if (item) {
-              onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo)
+              onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo, index)
             }
           }
           break
@@ -384,7 +382,7 @@ export function SetlistViewer({
 
   if (loading) {
     return (
-      <Layout title="Carregando..." onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Carregando..." onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Carregando...</div>
         </div>
@@ -394,7 +392,7 @@ export function SetlistViewer({
 
   if (!setlist) {
     return (
-      <Layout title="Erro" onHome={onHome} onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
+      <Layout title="Erro" onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
         <div className="h-screen flex items-center justify-center">
           <div className="text-neutral-400">Setlist nao encontrado</div>
         </div>
@@ -406,7 +404,6 @@ export function SetlistViewer({
     <Layout
       title={setlist.name}
       subtitle={formatDate(setlist.date)}
-      onHome={onHome}
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
@@ -467,7 +464,7 @@ export function SetlistViewer({
                     </div>
 
                     <button
-                      onClick={() => onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo)}
+                      onClick={() => onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo, index)}
                       className="flex-1 text-left ml-2 cursor-pointer"
                     >
                       <div className="font-medium">{item.song.title}</div>

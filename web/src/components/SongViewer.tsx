@@ -14,13 +14,13 @@ interface SetlistSongInfo {
   bpm: number | null
   notes: string | null
   itemId: string
+  position?: number
 }
 
 interface SongViewerProps {
   song: Song
   onBack: () => void
   onEdit: () => void
-  onHome: () => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -30,7 +30,7 @@ interface SongViewerProps {
   setlistId?: string | null
   setlistItemId?: string | null
   setlistSongs?: SetlistSongInfo[]
-  onNavigateToSong?: (songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[]) => void
+  onNavigateToSong?: (songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[], position?: number) => void
   onNotesUpdated?: (itemId: string, notes: string | null) => void
 }
 
@@ -101,7 +101,6 @@ export function SongViewer({
   song,
   onBack,
   onEdit,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist,
@@ -169,7 +168,7 @@ export function SongViewer({
     const newIndex = direction === 'prev' ? currentPosition - 1 : currentPosition + 1
     const targetSong = setlistSongs[newIndex]
     if (targetSong) {
-      onNavigateToSong(targetSong.songId, targetSong.key, targetSong.bpm, targetSong.notes, targetSong.itemId)
+      onNavigateToSong(targetSong.songId, targetSong.key, targetSong.bpm, targetSong.notes, targetSong.itemId, setlistSongs, newIndex)
     }
   }, [setlistSongs, onNavigateToSong, currentPosition])
 
@@ -349,7 +348,6 @@ export function SongViewer({
     <Layout
       title={song.title}
       subtitle={song.artist}
-      onHome={onHome}
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}

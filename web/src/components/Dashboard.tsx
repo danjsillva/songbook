@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'wouter'
 import { api } from '../api/client'
 import type { SongListItem, SetlistListItem } from '@songbook/shared'
-
-interface DashboardProps {
-  onSelectSong: (id: string) => void
-  onSelectSetlist: (id: string) => void
-}
 
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-')
@@ -31,7 +27,7 @@ function Shortcut({ keys, label }: { keys: string; label: string }) {
   )
 }
 
-export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
+export function Dashboard() {
   const [recentSongs, setRecentSongs] = useState<SongListItem[]>([])
   const [recentSetlists, setRecentSetlists] = useState<SetlistListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,9 +79,9 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
                 ) : (
                   <div className="space-y-1">
                     {recentSongs.map((song) => (
-                      <button
+                      <Link
                         key={song.id}
-                        onClick={() => onSelectSong(song.id)}
+                        href={`/songs/${song.id}`}
                         className="w-full p-3 text-left rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-between gap-3 cursor-pointer"
                       >
                         <div className="min-w-0">
@@ -104,7 +100,7 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
                             </span>
                           )}
                         </div>
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -120,9 +116,9 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
                 ) : (
                   <div className="space-y-1">
                     {recentSetlists.map((setlist) => (
-                      <button
+                      <Link
                         key={setlist.id}
-                        onClick={() => onSelectSetlist(setlist.id)}
+                        href={`/setlists/${setlist.id}`}
                         className="w-full p-3 text-left rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-between gap-3 cursor-pointer"
                       >
                         <div className="min-w-0">
@@ -132,7 +128,7 @@ export function Dashboard({ onSelectSong, onSelectSetlist }: DashboardProps) {
                         <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono flex-shrink-0">
                           {setlist.songCount}
                         </span>
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 )}

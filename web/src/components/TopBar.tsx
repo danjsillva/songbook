@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'wouter'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -57,7 +58,6 @@ interface SetlistNavProps {
 interface TopBarProps {
   title: string
   subtitle?: string
-  onHome: () => void
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
@@ -70,7 +70,6 @@ interface TopBarProps {
 export function TopBar({
   title,
   subtitle,
-  onHome,
   onSearch,
   onAddSong,
   onAddSetlist,
@@ -89,15 +88,15 @@ export function TopBar({
     <header className="h-12 bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50 relative flex items-center">
       {/* Logo - posicao fixa esquerda */}
       <div className="absolute left-4">
-        <button
-          onClick={onHome}
+        <Link
+          href="/"
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
           title="Inicio"
         >
           <svg className="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
           </svg>
-        </button>
+        </Link>
       </div>
 
       {/* Container centralizado - alinhado com conteudo principal */}

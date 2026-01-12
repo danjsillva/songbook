@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { Route, Switch, useLocation, useParams } from 'wouter'
 import { api } from './api/client'
 import { useSong } from './hooks/useSong'
+import { useSetlist } from './hooks/useSetlist'
 import { Dashboard } from './components/Dashboard'
 import { SongViewer } from './components/SongViewer'
 import { SongForm } from './components/SongForm'
@@ -10,67 +12,24 @@ import { SearchModal } from './components/SearchModal'
 import { Layout } from './components/Layout'
 import type { SongListItem, SetlistListItem } from '@songbook/shared'
 
-type View = 'dashboard' | 'view-song' | 'edit-song' | 'add-song' | 'view-setlist' | 'edit-setlist' | 'add-setlist'
 type ModalType = 'songs' | 'setlists' | null
 
-interface SetlistSongInfo {
-  songId: string
-  key: string
-  bpm: number | null
-  notes: string | null
-  itemId: string
-}
-
 function App() {
-  const [view, setView] = useState<View>('dashboard')
-  const [selectedSongId, setSelectedSongId] = useState<string | null>(null)
-  const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null)
-  const [selectedSetlistItemId, setSelectedSetlistItemId] = useState<string | null>(null)
-  const [setlistSongsInfo, setSetlistSongsInfo] = useState<SetlistSongInfo[]>([])
-  const [songKeyOverride, setSongKeyOverride] = useState<string | null>(null)
-  const [songBpmOverride, setSongBpmOverride] = useState<number | null>(null)
-  const [songNotes, setSongNotes] = useState<string | null>(null)
   const [modalType, setModalType] = useState<ModalType>(null)
-
-  const { song, loading: loadingSong, refetch: refetchSong } = useSong(selectedSongId)
-
-  // Marcar como visualizado quando abrir
-  useEffect(() => {
-    if (view === 'view-song' && selectedSongId) {
-      api.songs.markViewed(selectedSongId)
-    }
-  }, [view, selectedSongId])
-
-  useEffect(() => {
-    if (view === 'view-setlist' && selectedSetlistId) {
-      api.setlists.markViewed(selectedSetlistId)
-    }
-  }, [view, selectedSetlistId])
+  const [, navigate] = useLocation()
 
   // ============ NAVIGATION CALLBACKS ============
 
   const navCallbacks = {
-    onHome: useCallback(() => {
-      setSelectedSongId(null)
-      setSelectedSetlistId(null)
-      setSelectedSetlistItemId(null)
-      setSetlistSongsInfo([])
-      setSongKeyOverride(null)
-      setSongBpmOverride(null)
-      setSongNotes(null)
-      setView('dashboard')
-    }, []),
     onSearch: useCallback(() => setModalType('songs'), []),
-    onAddSong: useCallback(() => setView('add-song'), []),
-    onAddSetlist: useCallback(() => setView('add-setlist'), []),
+    onAddSong: useCallback(() => navigate('/songs/new'), [navigate]),
+    onAddSetlist: useCallback(() => navigate('/setlists/new'), [navigate]),
   }
 
   // Atalho global "/" para busca rápida
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignorar se estiver em input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      // Ignorar se modal já estiver aberto
       if (modalType) return
 
       if (e.key === '/') {
@@ -82,75 +41,17 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [modalType])
 
-  // ============ SONG HANDLERS ============
-
-  const handleSelectSong = useCallback((id: string) => {
-    setSelectedSongId(id)
-    setSelectedSetlistItemId(null)
-    setSongKeyOverride(null)
-    setSongBpmOverride(null)
-    setSongNotes(null)
-    setModalType(null)
-    setView('view-song')
-  }, [])
-
-  const handleSongSaved = useCallback((id: string) => {
-    setSelectedSongId(id)
-    refetchSong()
-    setView('view-song')
-  }, [refetchSong])
-
-  const handleSongDeleted = useCallback(() => {
-    setSelectedSongId(null)
-    setView('dashboard')
-  }, [])
-
-  // ============ SETLIST HANDLERS ============
-
-  const handleSelectSetlist = useCallback((id: string) => {
-    setSelectedSetlistId(id)
-    setModalType(null)
-    setView('view-setlist')
-  }, [])
-
-  const handleSetlistSaved = useCallback((id: string) => {
-    setSelectedSetlistId(id)
-    setView('view-setlist')
-  }, [])
-
-  const handleSetlistDeleted = useCallback(() => {
-    setSelectedSetlistId(null)
-    setView('dashboard')
-  }, [])
-
-  const handleViewSongFromSetlist = useCallback((songId: string, key: string, bpm: number | null, notes: string | null, itemId: string, allSongs?: SetlistSongInfo[]) => {
-    setSelectedSongId(songId)
-    setSelectedSetlistItemId(itemId)
-    if (allSongs) {
-      setSetlistSongsInfo(allSongs)
-    }
-    setSongKeyOverride(key)
-    setSongBpmOverride(bpm)
-    setSongNotes(notes)
-    setView('view-song')
-  }, [])
-
-  const handleNotesUpdated = useCallback((itemId: string, newNotes: string | null) => {
-    setSongNotes(newNotes)
-    setSetlistSongsInfo(prev => prev.map(s =>
-      s.itemId === itemId ? { ...s, notes: newNotes } : s
-    ))
-  }, [])
-
   // ============ MODAL HANDLERS ============
 
   const handleModalSelectSong = useCallback((song: SongListItem) => {
-    handleSelectSong(song.id)
-  }, [handleSelectSong])
+    setModalType(null)
+    navigate(`/songs/${song.id}`)
+  }, [navigate])
 
   const handleModalSelectSetlist = useCallback((setlist: SetlistListItem) => {
-    handleSelectSetlist(setlist.id)
-  }, [handleSelectSetlist])
+    setModalType(null)
+    navigate(`/setlists/${setlist.id}`)
+  }, [navigate])
 
   // ============ RENDER MODALS ============
 
@@ -168,61 +69,83 @@ function App() {
 
   // ============ RENDER ============
 
-  // Add song
-  if (view === 'add-song') {
-    return (
-      <SongForm
-        {...navCallbacks}
-        onBack={navCallbacks.onHome}
-        onSaved={handleSongSaved}
-      />
-    )
-  }
+  return (
+    <>
+      <Switch>
+        <Route path="/songs/new">
+          <AddSongPage navCallbacks={navCallbacks} />
+        </Route>
+        <Route path="/songs/:id/edit">
+          <EditSongPage navCallbacks={navCallbacks} />
+        </Route>
+        <Route path="/songs/:id">
+          <ViewSongPage navCallbacks={navCallbacks} renderModals={renderModals} />
+        </Route>
+        <Route path="/setlists/new">
+          <AddSetlistPage navCallbacks={navCallbacks} />
+        </Route>
+        <Route path="/setlists/:id/edit">
+          <EditSetlistPage navCallbacks={navCallbacks} />
+        </Route>
+        <Route path="/setlists/:setlistId/songs/:position">
+          <ViewSetlistSongPage navCallbacks={navCallbacks} renderModals={renderModals} />
+        </Route>
+        <Route path="/setlists/:id">
+          <ViewSetlistPage navCallbacks={navCallbacks} renderModals={renderModals} />
+        </Route>
+        <Route path="/">
+          <DashboardPage navCallbacks={navCallbacks} renderModals={renderModals} />
+        </Route>
+        <Route>
+          <Layout title="404" {...navCallbacks}>
+            <div className="flex items-center justify-center h-64">
+              <p className="text-neutral-400">Página não encontrada</p>
+            </div>
+          </Layout>
+        </Route>
+      </Switch>
+    </>
+  )
+}
 
-  // Edit song
-  if (view === 'edit-song' && song) {
-    return (
-      <SongForm
-        {...navCallbacks}
-        song={song}
-        onBack={() => setView('view-song')}
-        onSaved={handleSongSaved}
-        onDelete={handleSongDeleted}
-      />
-    )
-  }
+// ============ PAGE COMPONENTS ============
 
-  // View song
-  if (view === 'view-song' && song) {
-    return (
-      <>
-        <SongViewer
-          {...navCallbacks}
-          song={song}
-          onBack={() => {
-            if (selectedSetlistId) {
-              setView('view-setlist')
-            } else {
-              navCallbacks.onHome()
-            }
-          }}
-          onEdit={() => setView('edit-song')}
-          initialTranspose={songKeyOverride}
-          bpmOverride={songBpmOverride}
-          notes={songNotes}
-          setlistId={selectedSetlistId}
-          setlistItemId={selectedSetlistItemId}
-          setlistSongs={setlistSongsInfo}
-          onNavigateToSong={handleViewSongFromSetlist}
-          onNotesUpdated={handleNotesUpdated}
-        />
-        {renderModals()}
-      </>
-    )
+interface PageProps {
+  navCallbacks: {
+    onSearch: () => void
+    onAddSong: () => void
+    onAddSetlist: () => void
   }
+  renderModals?: () => ReactNode
+}
 
-  // Loading song
-  if ((view === 'view-song' || view === 'edit-song') && loadingSong) {
+function DashboardPage({ navCallbacks, renderModals }: PageProps) {
+  return (
+    <Layout title="Songbook" subtitle="Suas musicas e setlists" {...navCallbacks}>
+      <Dashboard />
+      {renderModals?.()}
+    </Layout>
+  )
+}
+
+function AddSongPage({ navCallbacks }: PageProps) {
+  const [, navigate] = useLocation()
+
+  return (
+    <SongForm
+      {...navCallbacks}
+      onBack={() => navigate('/')}
+      onSaved={(id) => navigate(`/songs/${id}`)}
+    />
+  )
+}
+
+function EditSongPage({ navCallbacks }: PageProps) {
+  const { id } = useParams<{ id: string }>()
+  const { song, loading } = useSong(id!)
+  const [, navigate] = useLocation()
+
+  if (loading) {
     return (
       <Layout title="Carregando..." {...navCallbacks}>
         <div className="h-screen flex items-center justify-center">
@@ -232,55 +155,197 @@ function App() {
     )
   }
 
-  // Add setlist
-  if (view === 'add-setlist') {
+  if (!song) {
     return (
-      <SetlistForm
-        {...navCallbacks}
-        onBack={navCallbacks.onHome}
-        onSaved={handleSetlistSaved}
-      />
+      <Layout title="Não encontrada" {...navCallbacks}>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-neutral-400">Música não encontrada</div>
+        </div>
+      </Layout>
     )
   }
 
-  // Edit setlist
-  if (view === 'edit-setlist' && selectedSetlistId) {
-    return (
-      <SetlistForm
-        {...navCallbacks}
-        setlistId={selectedSetlistId}
-        onBack={() => setView('view-setlist')}
-        onSaved={handleSetlistSaved}
-        onDelete={handleSetlistDeleted}
-      />
-    )
-  }
-
-  // View setlist
-  if (view === 'view-setlist' && selectedSetlistId) {
-    return (
-      <>
-        <SetlistViewer
-          {...navCallbacks}
-          setlistId={selectedSetlistId}
-          onBack={navCallbacks.onHome}
-          onEdit={() => setView('edit-setlist')}
-          onViewSong={handleViewSongFromSetlist}
-        />
-        {renderModals()}
-      </>
-    )
-  }
-
-  // Dashboard (default)
   return (
-    <Layout title="Songbook" subtitle="Suas musicas e setlists" {...navCallbacks}>
-      <Dashboard
-        onSelectSong={handleSelectSong}
-        onSelectSetlist={handleSelectSetlist}
+    <SongForm
+      {...navCallbacks}
+      song={song}
+      onBack={() => navigate(`/songs/${id}`)}
+      onSaved={() => navigate(`/songs/${id}`)}
+      onDelete={() => navigate('/')}
+    />
+  )
+}
+
+function ViewSongPage({ navCallbacks, renderModals }: PageProps) {
+  const { id } = useParams<{ id: string }>()
+  const { song, loading } = useSong(id!)
+  const [, navigate] = useLocation()
+
+  useEffect(() => {
+    if (id) {
+      api.songs.markViewed(id)
+    }
+  }, [id])
+
+  if (loading) {
+    return (
+      <Layout title="Carregando..." {...navCallbacks}>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-neutral-400">Carregando...</div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (!song) {
+    return (
+      <Layout title="Não encontrada" {...navCallbacks}>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-neutral-400">Música não encontrada</div>
+        </div>
+      </Layout>
+    )
+  }
+
+  return (
+    <>
+      <SongViewer
+        {...navCallbacks}
+        song={song}
+        onBack={() => navigate('/')}
+        onEdit={() => navigate(`/songs/${id}/edit`)}
       />
-      {renderModals()}
-    </Layout>
+      {renderModals?.()}
+    </>
+  )
+}
+
+function AddSetlistPage({ navCallbacks }: PageProps) {
+  const [, navigate] = useLocation()
+
+  return (
+    <SetlistForm
+      {...navCallbacks}
+      onBack={() => navigate('/')}
+      onSaved={(id) => navigate(`/setlists/${id}`)}
+    />
+  )
+}
+
+function EditSetlistPage({ navCallbacks }: PageProps) {
+  const { id } = useParams<{ id: string }>()
+  const [, navigate] = useLocation()
+
+  return (
+    <SetlistForm
+      {...navCallbacks}
+      setlistId={id}
+      onBack={() => navigate(`/setlists/${id}`)}
+      onSaved={() => navigate(`/setlists/${id}`)}
+      onDelete={() => navigate('/')}
+    />
+  )
+}
+
+function ViewSetlistPage({ navCallbacks, renderModals }: PageProps) {
+  const { id } = useParams<{ id: string }>()
+  const [, navigate] = useLocation()
+
+  useEffect(() => {
+    if (id) {
+      api.setlists.markViewed(id)
+    }
+  }, [id])
+
+  return (
+    <>
+      <SetlistViewer
+        {...navCallbacks}
+        setlistId={id!}
+        onBack={() => navigate('/')}
+        onEdit={() => navigate(`/setlists/${id}/edit`)}
+        onViewSong={(_songId, _key, _bpm, _notes, _itemId, _allSongs, position) => {
+          navigate(`/setlists/${id}/songs/${position}`)
+        }}
+      />
+      {renderModals?.()}
+    </>
+  )
+}
+
+function ViewSetlistSongPage({ navCallbacks, renderModals }: PageProps) {
+  const { setlistId, position } = useParams<{ setlistId: string; position: string }>()
+  const { setlist, loading: loadingSetlist } = useSetlist(setlistId!)
+  const positionNum = parseInt(position!, 10)
+
+  const [, navigate] = useLocation()
+
+  // Encontrar a música na posição
+  const setlistSong = setlist?.songs[positionNum]
+  const { song, loading: loadingSong } = useSong(setlistSong?.songId || null)
+
+  useEffect(() => {
+    if (setlistSong?.songId) {
+      api.songs.markViewed(setlistSong.songId)
+    }
+  }, [setlistSong?.songId])
+
+  const loading = loadingSetlist || loadingSong
+
+  if (loading) {
+    return (
+      <Layout title="Carregando..." {...navCallbacks}>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-neutral-400">Carregando...</div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (!setlist || !setlistSong || !song) {
+    return (
+      <Layout title="Não encontrada" {...navCallbacks}>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-neutral-400">Música não encontrada</div>
+        </div>
+      </Layout>
+    )
+  }
+
+  // Preparar info de navegação do setlist
+  const setlistSongsInfo = setlist.songs.map((s, idx) => ({
+    songId: s.songId,
+    key: s.key,
+    bpm: s.bpm,
+    notes: s.notes,
+    itemId: s.id,
+    position: idx,
+  }))
+
+  return (
+    <>
+      <SongViewer
+        {...navCallbacks}
+        song={song}
+        onBack={() => navigate(`/setlists/${setlistId}`)}
+        onEdit={() => navigate(`/songs/${song.id}/edit`)}
+        initialTranspose={setlistSong.key}
+        bpmOverride={setlistSong.bpm}
+        notes={setlistSong.notes}
+        setlistId={setlistId}
+        setlistItemId={setlistSong.id}
+        setlistSongs={setlistSongsInfo}
+        onNavigateToSong={(_songId, _key, _bpm, _notes, _itemId, _allSongs, newPosition) => {
+          if (newPosition !== undefined) {
+            navigate(`/setlists/${setlistId}/songs/${newPosition}`)
+          }
+        }}
+        onNotesUpdated={() => {
+          // Notas atualizadas via API, refetch do setlist se necessário
+        }}
+      />
+      {renderModals?.()}
+    </>
   )
 }
 
