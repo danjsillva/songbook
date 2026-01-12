@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS songs (
   content TEXT NOT NULL,
   plain_text TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  last_viewed_at INTEGER
+  last_viewed_at INTEGER,
+  created_by TEXT
 );
 
 -- Índices para ordenação
@@ -51,7 +52,8 @@ CREATE TABLE IF NOT EXISTS setlists (
   name TEXT NOT NULL,
   date TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  last_viewed_at INTEGER
+  last_viewed_at INTEGER,
+  created_by TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_setlists_date ON setlists(date DESC);

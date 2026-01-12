@@ -58,8 +58,8 @@ function error(message: string, status = 400): Response {
 // GET /api/songs/recent - 5 músicas mais recentes (por last_viewed_at)
 async function getRecentSongs(db: D1Database): Promise<Response> {
   const result = await db
-    .prepare('SELECT id, title, artist, original_key, bpm, created_at FROM songs WHERE last_viewed_at IS NOT NULL ORDER BY last_viewed_at DESC LIMIT 5')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number }>()
+    .prepare('SELECT id, title, artist, original_key, bpm, created_at, created_by FROM songs WHERE last_viewed_at IS NOT NULL ORDER BY last_viewed_at DESC LIMIT 5')
+    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
 
   const songs: SongListItem[] = result.results.map(row => ({
     id: row.id,
@@ -68,6 +68,7 @@ async function getRecentSongs(db: D1Database): Promise<Response> {
     originalKey: row.original_key,
     bpm: row.bpm,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }))
 
   return json(songs)
@@ -90,8 +91,8 @@ async function markSongViewed(db: D1Database, id: string): Promise<Response> {
 // GET /api/songs - Lista todas as músicas
 async function listSongs(db: D1Database): Promise<Response> {
   const result = await db
-    .prepare('SELECT id, title, artist, original_key, bpm, created_at FROM songs ORDER BY created_at DESC')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number }>()
+    .prepare('SELECT id, title, artist, original_key, bpm, created_at, created_by FROM songs ORDER BY created_at DESC')
+    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
 
   const songs: SongListItem[] = result.results.map(row => ({
     id: row.id,
@@ -100,6 +101,7 @@ async function listSongs(db: D1Database): Promise<Response> {
     originalKey: row.original_key,
     bpm: row.bpm,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }))
 
   return json(songs)
@@ -110,7 +112,7 @@ async function getSong(db: D1Database, id: string): Promise<Response> {
   const row = await db
     .prepare('SELECT * FROM songs WHERE id = ?')
     .bind(id)
-    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number }>()
+    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number; created_by: string | null }>()
 
   if (!row) {
     return error('Song not found', 404)
@@ -126,13 +128,14 @@ async function getSong(db: D1Database, id: string): Promise<Response> {
     content: JSON.parse(row.content),
     plainText: row.plain_text,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }
 
   return json(song)
 }
 
 // POST /api/songs - Cria uma música
-async function createSong(db: D1Database, input: CreateSongInput): Promise<Response> {
+async function createSong(db: D1Database, input: CreateSongInput, userId: string): Promise<Response> {
   const id = nanoid(10)
   const content = parseHtmlToSongLines(input.html)
   const plainText = generatePlainText(content)
@@ -140,12 +143,13 @@ async function createSong(db: D1Database, input: CreateSongInput): Promise<Respo
   const bpm = input.bpm || null
   const youtubeUrl = input.youtubeUrl || null
   const createdAt = Date.now()
+  const createdBy = userId === 'anonymous' ? null : userId
 
   await db
     .prepare(
-      'INSERT INTO songs (id, title, artist, original_key, bpm, youtube_url, content, plain_text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO songs (id, title, artist, original_key, bpm, youtube_url, content, plain_text, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .bind(id, input.title, input.artist, originalKey, bpm, youtubeUrl, JSON.stringify(content), plainText, createdAt)
+    .bind(id, input.title, input.artist, originalKey, bpm, youtubeUrl, JSON.stringify(content), plainText, createdAt, createdBy)
     .run()
 
   const song: Song = {
@@ -158,6 +162,7 @@ async function createSong(db: D1Database, input: CreateSongInput): Promise<Respo
     content,
     plainText,
     createdAt,
+    createdBy,
   }
 
   return json(song, 201)
@@ -203,7 +208,7 @@ async function classifySong(db: D1Database, id: string, apiKey: string): Promise
   const row = await db
     .prepare('SELECT * FROM songs WHERE id = ?')
     .bind(id)
-    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number }>()
+    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number; created_by: string | null }>()
 
   if (!row) {
     return error('Song not found', 404)
@@ -254,6 +259,7 @@ async function classifySong(db: D1Database, id: string, apiKey: string): Promise
     content: newContent,
     plainText: newPlainText,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }
 
   return json(song)
@@ -268,7 +274,7 @@ async function searchSongs(db: D1Database, query: string): Promise<Response> {
   // Busca usando FTS5
   const result = await db
     .prepare(`
-      SELECT s.id, s.title, s.artist, s.original_key, s.bpm, s.created_at
+      SELECT s.id, s.title, s.artist, s.original_key, s.bpm, s.created_at, s.created_by
       FROM songs s
       JOIN songs_fts fts ON s.rowid = fts.rowid
       WHERE songs_fts MATCH ?
@@ -276,7 +282,7 @@ async function searchSongs(db: D1Database, query: string): Promise<Response> {
       LIMIT 50
     `)
     .bind(query + '*')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number }>()
+    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
 
   const songs: SongListItem[] = result.results.map(row => ({
     id: row.id,
@@ -285,6 +291,7 @@ async function searchSongs(db: D1Database, query: string): Promise<Response> {
     originalKey: row.original_key,
     bpm: row.bpm,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }))
 
   return json({ songs, query })
@@ -296,14 +303,14 @@ async function searchSongs(db: D1Database, query: string): Promise<Response> {
 async function getRecentSetlists(db: D1Database): Promise<Response> {
   const result = await db
     .prepare(`
-      SELECT s.id, s.name, s.date, s.created_at,
+      SELECT s.id, s.name, s.date, s.created_at, s.created_by,
         (SELECT COUNT(*) FROM setlist_songs WHERE setlist_id = s.id) as song_count
       FROM setlists s
       WHERE s.last_viewed_at IS NOT NULL
       ORDER BY s.last_viewed_at DESC
       LIMIT 5
     `)
-    .all<{ id: string; name: string; date: string; created_at: number; song_count: number }>()
+    .all<{ id: string; name: string; date: string; created_at: number; created_by: string | null; song_count: number }>()
 
   const setlists: SetlistListItem[] = result.results.map(row => ({
     id: row.id,
@@ -311,6 +318,7 @@ async function getRecentSetlists(db: D1Database): Promise<Response> {
     date: row.date,
     songCount: row.song_count,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }))
 
   return json(setlists)
@@ -334,12 +342,12 @@ async function markSetlistViewed(db: D1Database, id: string): Promise<Response> 
 async function listSetlists(db: D1Database): Promise<Response> {
   const result = await db
     .prepare(`
-      SELECT s.id, s.name, s.date, s.created_at,
+      SELECT s.id, s.name, s.date, s.created_at, s.created_by,
         (SELECT COUNT(*) FROM setlist_songs WHERE setlist_id = s.id) as song_count
       FROM setlists s
       ORDER BY s.date DESC
     `)
-    .all<{ id: string; name: string; date: string; created_at: number; song_count: number }>()
+    .all<{ id: string; name: string; date: string; created_at: number; created_by: string | null; song_count: number }>()
 
   const setlists: SetlistListItem[] = result.results.map(row => ({
     id: row.id,
@@ -347,6 +355,7 @@ async function listSetlists(db: D1Database): Promise<Response> {
     date: row.date,
     songCount: row.song_count,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   }))
 
   return json(setlists)
@@ -357,7 +366,7 @@ async function getSetlist(db: D1Database, id: string): Promise<Response> {
   const setlistRow = await db
     .prepare('SELECT * FROM setlists WHERE id = ?')
     .bind(id)
-    .first<{ id: string; name: string; date: string; created_at: number }>()
+    .first<{ id: string; name: string; date: string; created_at: number; created_by: string | null }>()
 
   if (!setlistRow) {
     return error('Setlist not found', 404)
@@ -366,7 +375,7 @@ async function getSetlist(db: D1Database, id: string): Promise<Response> {
   const songsResult = await db
     .prepare(`
       SELECT ss.id, ss.song_id, ss.position, ss.key, ss.bpm as setlist_bpm, ss.notes,
-        s.title, s.artist, s.original_key, s.bpm, s.created_at
+        s.title, s.artist, s.original_key, s.bpm, s.created_at, s.created_by
       FROM setlist_songs ss
       JOIN songs s ON ss.song_id = s.id
       WHERE ss.setlist_id = ?
@@ -375,7 +384,7 @@ async function getSetlist(db: D1Database, id: string): Promise<Response> {
     .bind(id)
     .all<{
       id: string; song_id: string; position: number; key: string; setlist_bpm: number | null; notes: string | null;
-      title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number
+      title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null
     }>()
 
   const songs: SetlistSong[] = songsResult.results.map(row => ({
@@ -392,6 +401,7 @@ async function getSetlist(db: D1Database, id: string): Promise<Response> {
       originalKey: row.original_key,
       bpm: row.bpm,
       createdAt: row.created_at,
+      createdBy: row.created_by,
     },
   }))
 
@@ -401,19 +411,21 @@ async function getSetlist(db: D1Database, id: string): Promise<Response> {
     date: setlistRow.date,
     songs,
     createdAt: setlistRow.created_at,
+    createdBy: setlistRow.created_by,
   }
 
   return json(setlist)
 }
 
 // POST /api/setlists - Cria setlist
-async function createSetlist(db: D1Database, input: CreateSetlistInput): Promise<Response> {
+async function createSetlist(db: D1Database, input: CreateSetlistInput, userId: string): Promise<Response> {
   const id = nanoid(10)
   const createdAt = Date.now()
+  const createdBy = userId === 'anonymous' ? null : userId
 
   await db
-    .prepare('INSERT INTO setlists (id, name, date, created_at) VALUES (?, ?, ?, ?)')
-    .bind(id, input.name, input.date, createdAt)
+    .prepare('INSERT INTO setlists (id, name, date, created_at, created_by) VALUES (?, ?, ?, ?, ?)')
+    .bind(id, input.name, input.date, createdAt, createdBy)
     .run()
 
   const setlist: Setlist = {
@@ -422,6 +434,7 @@ async function createSetlist(db: D1Database, input: CreateSetlistInput): Promise
     date: input.date,
     songs: [],
     createdAt,
+    createdBy,
   }
 
   return json(setlist, 201)
@@ -612,7 +625,7 @@ export default {
         if (!input.title || !input.artist || !input.html) {
           return error('Missing required fields: title, artist, html')
         }
-        return createSong(env.DB, input)
+        return createSong(env.DB, input, auth)
       }
 
       // PUT /api/songs/:id/view
@@ -721,7 +734,7 @@ export default {
         if (!input.name || !input.date) {
           return error('Missing required fields: name, date')
         }
-        return createSetlist(env.DB, input)
+        return createSetlist(env.DB, input, auth)
       }
 
       // PUT /api/setlists/:id/view

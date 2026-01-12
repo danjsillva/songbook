@@ -34,6 +34,7 @@ export interface Song {
   content: SongLine[]
   plainText: string
   createdAt: number
+  createdBy: string | null
 }
 
 // Para criação (sem id e timestamps)
@@ -54,6 +55,7 @@ export interface SongListItem {
   originalKey: string | null
   bpm: number | null
   createdAt: number
+  createdBy: string | null
 }
 
 // Resposta da busca
@@ -95,6 +97,7 @@ export interface Setlist {
   date: string
   songs: SetlistSong[]
   createdAt: number
+  createdBy: string | null
 }
 
 // Para listagem
@@ -104,6 +107,7 @@ export interface SetlistListItem {
   date: string
   songCount: number
   createdAt: number
+  createdBy: string | null
 }
 
 // Inputs
