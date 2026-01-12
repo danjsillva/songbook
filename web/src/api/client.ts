@@ -1,6 +1,7 @@
 import type {
   Song, SongListItem, CreateSongInput, SearchResult, ExtractedSongData, ExtractFromUrlInput,
-  Setlist, SetlistListItem, CreateSetlistInput, UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput
+  Setlist, SetlistListItem, CreateSetlistInput, UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput,
+  User, SyncUserInput
 } from '@songbook/shared'
 import { getAuthToken } from '../contexts/AuthContext'
 
@@ -118,5 +119,18 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
+  },
+
+  users: {
+    sync: (input: SyncUserInput) =>
+      request<User>('/users/sync', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    get: (id: string) => request<User>(`/users/${id}`),
+
+    getMany: (ids: string[]) =>
+      request<User[]>(`/users?ids=${ids.join(',')}`),
   },
 }

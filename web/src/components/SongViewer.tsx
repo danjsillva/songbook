@@ -355,6 +355,7 @@ export function SongViewer({
       setlistNav={setlistNav}
       bpm={bpmOverride || song.bpm}
       originalKey={song.originalKey}
+      createdBy={song.createdBy}
     >
       {/* FloatingControls - fixed relativo ao viewport */}
       <div

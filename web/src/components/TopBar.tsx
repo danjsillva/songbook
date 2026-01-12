@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'wouter'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useAuth } from '../contexts/AuthContext'
+import { AuthorBadge } from './AuthorBadge'
 
 const Icons = {
   search: (
@@ -65,6 +66,7 @@ interface TopBarProps {
   setlistNav?: SetlistNavProps
   bpm?: number | null
   originalKey?: string | null
+  createdBy?: string | null
 }
 
 export function TopBar({
@@ -77,6 +79,7 @@ export function TopBar({
   setlistNav,
   bpm,
   originalKey,
+  createdBy,
 }: TopBarProps) {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -128,7 +131,7 @@ export function TopBar({
               </div>
             )}
           </div>
-          <div className="flex items-baseline gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-xl font-semibold text-neutral-100 truncate">
               {title}
             </h1>
@@ -137,6 +140,7 @@ export function TopBar({
                 {subtitle}
               </span>
             )}
+            {createdBy && <AuthorBadge userId={createdBy} />}
           </div>
           {onEdit && (
             <button

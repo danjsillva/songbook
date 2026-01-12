@@ -49,6 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Token expires in 1 hour, refresh 5 min before
             tokenExpiry = Date.now() + 55 * 60 * 1000
             setState({ user, loading: false, token })
+
+            // Sync user profile to our backend
+            try {
+              const { api } = await import('../api/client')
+              await api.users.sync({
+                name: user.displayName,
+                email: user.email,
+                photoUrl: user.photoURL,
+              })
+            } catch {
+              // Sync failed, non-critical
+            }
           } else {
             cachedToken = null
             tokenExpiry = 0

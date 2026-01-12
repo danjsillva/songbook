@@ -5,6 +5,22 @@ import { Layout } from './Layout'
 import { SearchModal, type SetlistSongData } from './SearchModal'
 import { parseContent } from '../utils/parser'
 import { songCache } from '../cache/songCache'
+import {
+  DndContext,
+  closestCenter,
+  TouchSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface SetlistSongInfo {
   songId: string
@@ -50,14 +66,9 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  arrowUp: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-    </svg>
-  ),
-  arrowDown: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  dragHandle: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
     </svg>
   ),
 }
@@ -236,6 +247,95 @@ Intro suave"
   )
 }
 
+interface SortableSongItemProps {
+  item: SetlistSong
+  index: number
+  onViewSong: () => void
+  onEdit: () => void
+  onRemove: () => void
+}
+
+function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: SortableSongItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 py-4 hover:bg-neutral-800 -mx-4 px-4 rounded-lg transition-colors ${
+        isDragging ? 'opacity-50 bg-neutral-800 z-10' : ''
+      }`}
+    >
+      <span className="text-neutral-500 w-6 text-center">{index + 1}</span>
+
+      <button
+        {...attributes}
+        {...listeners}
+        className="p-2 text-neutral-400 hover:text-white cursor-grab active:cursor-grabbing touch-none"
+        title="Arrastar para reordenar"
+      >
+        {Icons.dragHandle}
+      </button>
+
+      <button
+        onClick={onViewSong}
+        className="flex-1 text-left ml-2 cursor-pointer"
+      >
+        <div className="font-medium">{item.song.title}</div>
+        <div className="text-sm text-neutral-400">{item.song.artist}</div>
+      </button>
+
+      <div className="flex gap-1 flex-shrink-0">
+        {item.notes ? (
+          <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
+            Notas
+          </span>
+        ) : (
+          <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
+            Notas
+          </span>
+        )}
+        {item.bpm && (
+          <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
+            {item.bpm}
+          </span>
+        )}
+        <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+          {item.key}
+        </span>
+      </div>
+
+      <button
+        onClick={onEdit}
+        className="p-2 text-neutral-400 hover:text-white cursor-pointer"
+        title="Editar"
+      >
+        {Icons.editSmall}
+      </button>
+
+      <button
+        onClick={onRemove}
+        className="p-2 text-neutral-400 hover:text-red-400 cursor-pointer"
+        title="Remover"
+      >
+        {Icons.remove}
+      </button>
+    </div>
+  )
+}
+
 export function SetlistViewer({
   setlistId,
   onBack,
@@ -345,23 +445,36 @@ export function SetlistViewer({
     }
   }
 
-  const handleMoveItem = async (index: number, direction: 'up' | 'down') => {
-    if (!setlist) return
-    const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= setlist.songs.length) return
+  // Sensors para drag and drop - delay no touch para não conflitar com scroll
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  )
 
-    // Criar nova ordem
-    const newOrder = [...setlist.songs]
-    const [item] = newOrder.splice(index, 1)
-    newOrder.splice(newIndex, 0, item)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!setlist || !over || active.id === over.id) return
+
+    const oldIndex = setlist.songs.findIndex(s => s.id === active.id)
+    const newIndex = setlist.songs.findIndex(s => s.id === over.id)
+    const newOrder = arrayMove(setlist.songs, oldIndex, newIndex)
+
+    // Optimistic update - atualiza UI imediatamente
+    setSetlist({ ...setlist, songs: newOrder })
 
     try {
       await api.setlists.reorder(setlistId, {
         itemIds: newOrder.map(s => s.id)
       })
-      loadSetlist()
     } catch (err) {
       console.error(err)
+      // Rollback em caso de erro
+      loadSetlist()
     }
   }
 
@@ -407,6 +520,7 @@ export function SetlistViewer({
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
+      createdBy={setlist.createdBy}
     >
       <div className="h-screen flex flex-col overflow-hidden">
         {/* Header com botoes */}
@@ -436,79 +550,29 @@ export function SetlistViewer({
                 Nenhuma musica no setlist. Clique em + para adicionar.
               </div>
             ) : (
-              <div className="space-y-1">
-                {setlist.songs.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-2 py-4 hover:bg-neutral-800 -mx-4 px-4 rounded-lg transition-colors"
-                  >
-                    <span className="text-neutral-500 w-6 text-center">{index + 1}</span>
-
-                    <div className="flex flex-col -my-2">
-                      <button
-                        onClick={() => handleMoveItem(index, 'up')}
-                        disabled={index === 0}
-                        className="p-0.5 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                        title="Mover para cima"
-                      >
-                        {Icons.arrowUp}
-                      </button>
-                      <button
-                        onClick={() => handleMoveItem(index, 'down')}
-                        disabled={index === setlist.songs.length - 1}
-                        className="p-0.5 text-neutral-400 hover:text-white disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                        title="Mover para baixo"
-                      >
-                        {Icons.arrowDown}
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo, index)}
-                      className="flex-1 text-left ml-2 cursor-pointer"
-                    >
-                      <div className="font-medium">{item.song.title}</div>
-                      <div className="text-sm text-neutral-400">{item.song.artist}</div>
-                    </button>
-
-                    <div className="flex gap-1 flex-shrink-0">
-                      {item.notes ? (
-                        <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
-                          Notas
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
-                          Notas
-                        </span>
-                      )}
-                      {item.bpm && (
-                        <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                          {item.bpm}
-                        </span>
-                      )}
-                      <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
-                        {item.key}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => setEditingItem(item)}
-                      className="p-2 text-neutral-400 hover:text-white cursor-pointer"
-                      title="Editar"
-                    >
-                      {Icons.editSmall}
-                    </button>
-
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="p-2 text-neutral-400 hover:text-red-400 cursor-pointer"
-                      title="Remover"
-                    >
-                      {Icons.remove}
-                    </button>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={setlist.songs.map(s => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-1">
+                    {setlist.songs.map((item, index) => (
+                      <SortableSongItem
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        onViewSong={() => onViewSong(item.songId, item.key, item.bpm, item.notes, item.id, songsInfo, index)}
+                        onEdit={() => setEditingItem(item)}
+                        onRemove={() => handleRemoveItem(item.id)}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </div>

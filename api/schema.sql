@@ -74,3 +74,13 @@ CREATE TABLE IF NOT EXISTS setlist_songs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_setlist_songs_setlist ON setlist_songs(setlist_id);
+
+-- Users (synced from Firebase Auth)
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT,
+  photo_url TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);

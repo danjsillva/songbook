@@ -137,3 +137,20 @@ export interface UpdateSetlistSongInput {
 export interface ReorderSetlistInput {
   itemIds: string[]
 }
+
+// ============ USERS ============
+
+export interface User {
+  id: string
+  name: string | null
+  email: string | null
+  photoUrl: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export interface SyncUserInput {
+  name?: string | null
+  email?: string | null
+  photoUrl?: string | null
+}

@@ -5,7 +5,8 @@ import { verifyFirebaseToken, getTokenFromRequest } from './auth'
 import type {
   Song, SongListItem, CreateSongInput, ExtractFromUrlInput,
   Setlist, SetlistListItem, SetlistSong, CreateSetlistInput,
-  UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput
+  UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput,
+  User, SyncUserInput
 } from '@songbook/shared'
 
 export interface Env {
@@ -593,6 +594,82 @@ async function reorderSetlist(db: D1Database, setlistId: string, input: ReorderS
   return getSetlist(db, setlistId)
 }
 
+// ============ USERS ============
+
+// POST /api/users/sync - Sync user profile from Firebase Auth
+async function syncUser(db: D1Database, userId: string, input: SyncUserInput): Promise<Response> {
+  const now = Date.now()
+
+  // Check if user exists
+  const existing = await db
+    .prepare('SELECT id FROM users WHERE id = ?')
+    .bind(userId)
+    .first()
+
+  if (existing) {
+    // Update
+    await db
+      .prepare('UPDATE users SET name = ?, email = ?, photo_url = ?, updated_at = ? WHERE id = ?')
+      .bind(input.name || null, input.email || null, input.photoUrl || null, now, userId)
+      .run()
+  } else {
+    // Insert
+    await db
+      .prepare('INSERT INTO users (id, name, email, photo_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(userId, input.name || null, input.email || null, input.photoUrl || null, now, now)
+      .run()
+  }
+
+  return getUser(db, userId)
+}
+
+// GET /api/users/:id - Get user by ID
+async function getUser(db: D1Database, userId: string): Promise<Response> {
+  const row = await db
+    .prepare('SELECT * FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{ id: string; name: string | null; email: string | null; photo_url: string | null; created_at: number; updated_at: number }>()
+
+  if (!row) {
+    return error('User not found', 404)
+  }
+
+  const user: User = {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    photoUrl: row.photo_url,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+
+  return json(user)
+}
+
+// GET /api/users?ids=id1,id2,id3 - Get multiple users
+async function getUsers(db: D1Database, ids: string[]): Promise<Response> {
+  if (ids.length === 0) {
+    return json([])
+  }
+
+  const placeholders = ids.map(() => '?').join(',')
+  const result = await db
+    .prepare(`SELECT * FROM users WHERE id IN (${placeholders})`)
+    .bind(...ids)
+    .all<{ id: string; name: string | null; email: string | null; photo_url: string | null; created_at: number; updated_at: number }>()
+
+  const users: User[] = result.results.map(row => ({
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    photoUrl: row.photo_url,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }))
+
+  return json(users)
+}
+
 // Router principal
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -803,6 +880,33 @@ export default {
           return error('Missing required field: itemIds')
         }
         return reorderSetlist(env.DB, reorderMatch[1], input)
+      }
+
+      // ============ USERS ============
+
+      // POST /api/users/sync (protected) - Sync current user profile
+      if (path === '/api/users/sync' && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
+        const input = await request.json<SyncUserInput>()
+        return syncUser(env.DB, auth, input)
+      }
+
+      // GET /api/users?ids=id1,id2,id3 - Get multiple users by IDs
+      if (path === '/api/users' && method === 'GET') {
+        const idsParam = url.searchParams.get('ids')
+        if (!idsParam) {
+          return error('Missing required query param: ids')
+        }
+        const ids = idsParam.split(',').filter(id => id.trim())
+        return getUsers(env.DB, ids)
+      }
+
+      // GET /api/users/:id - Get user by ID
+      const userMatch = path.match(/^\/api\/users\/([^/]+)$/)
+      if (userMatch && method === 'GET') {
+        return getUser(env.DB, userMatch[1])
       }
 
       return error('Not found', 404)

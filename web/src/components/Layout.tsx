@@ -21,6 +21,7 @@ interface LayoutProps {
   setlistNav?: SetlistNavProps
   bpm?: number | null
   originalKey?: string | null
+  createdBy?: string | null
 }
 
 export function Layout({
@@ -34,6 +35,7 @@ export function Layout({
   setlistNav,
   bpm,
   originalKey,
+  createdBy,
 }: LayoutProps) {
   return (
     <div className="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-hidden">
@@ -47,6 +49,7 @@ export function Layout({
         setlistNav={setlistNav}
         bpm={bpm}
         originalKey={originalKey}
+        createdBy={createdBy}
       />
       <main className="flex-1 min-w-0 min-h-0 flex flex-col">
         {children}
