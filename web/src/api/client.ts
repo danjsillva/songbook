@@ -2,14 +2,18 @@ import type {
   Song, SongListItem, CreateSongInput, SearchResult, ExtractedSongData, ExtractFromUrlInput,
   Setlist, SetlistListItem, CreateSetlistInput, UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput
 } from '@songbook/shared'
+import { getAuthToken } from '../contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken()
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options?.headers,
     },
   })

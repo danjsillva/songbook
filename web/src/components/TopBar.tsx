@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
+import { useAuth } from '../contexts/AuthContext'
 
 const Icons = {
   search: (
@@ -79,7 +80,10 @@ export function TopBar({
   originalKey,
 }: TopBarProps) {
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const addMenuRef = useClickOutside<HTMLDivElement>(() => setShowAddMenu(false), showAddMenu)
+  const userMenuRef = useClickOutside<HTMLDivElement>(() => setShowUserMenu(false), showUserMenu)
+  const { user, loading, signIn, signOut } = useAuth()
 
   return (
     <header className="h-12 bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50 relative flex items-center">
@@ -202,14 +206,56 @@ export function TopBar({
           {Icons.search}
         </button>
 
-        {/* Avatar (placeholder) */}
-        <button
-          disabled
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-neutral-600 cursor-not-allowed"
-          title="Perfil (em breve)"
-        >
-          {Icons.user}
-        </button>
+        {/* Avatar / Login */}
+        <div className="relative" ref={userMenuRef}>
+          {loading ? (
+            <div className="w-9 h-9 flex items-center justify-center">
+              <div className="w-5 h-5 border-2 border-neutral-600 border-t-neutral-400 rounded-full animate-spin" />
+            </div>
+          ) : user ? (
+            <>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer overflow-hidden"
+                title={user.displayName || 'Perfil'}
+              >
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt=""
+                    className="w-7 h-7 rounded-full"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-amber-600 flex items-center justify-center text-white text-sm font-medium">
+                    {user.displayName?.[0] || user.email?.[0] || '?'}
+                  </div>
+                )}
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-neutral-800 rounded-xl shadow-lg py-2 min-w-[180px] z-50 border border-neutral-700">
+                  <div className="px-4 py-2 border-b border-neutral-700">
+                    <p className="text-sm font-medium text-neutral-100 truncate">{user.displayName}</p>
+                    <p className="text-xs text-neutral-400 truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowUserMenu(false); signOut() }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer text-red-400"
+                  >
+                    Sair
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={signIn}
+              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              title="Entrar com Google"
+            >
+              {Icons.user}
+            </button>
+          )}
+        </div>
       </div>
     </header>
   )

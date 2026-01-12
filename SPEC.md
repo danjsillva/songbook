@@ -92,29 +92,19 @@ O padrão CifraClub existe há décadas sem evolução significativa. Músicos a
 
 ---
 
-## Roadmap de Prioridades
+## Princípios Técnicos
 
-### P0 - Core (MVP)
+### Performance Paranóica
 
-- [ ] Cadastro básico de músicas e setlists
-- [ ] Visualização de cifras otimizada
-- [ ] Transposição em tempo real
+- **Stale-while-revalidate** - mostrar cache instantâneo, atualizar em background
+- **Prefetch agressivo** - carregar dados antes do usuário precisar
+- **Bundle mínimo** - cada KB de JS importa
+- **Workers edge** - latência mínima de rede (Cloudflare)
+- **Zero loading spinners** em navegação normal
 
-### P1 - Essencial
+### Regras para Novas Features
 
-- [ ] Busca instantânea
-- [ ] Navegação entre músicas da setlist
-- [ ] Import básico (texto/link)
-
-### P2 - Diferencial
-
-- [ ] Anotações em músicas de setlist
-- [ ] IA para importação inteligente (CifraClub)
-- [ ] IA para importação inteligente (YouTube)
-
-### P3 - Futuro
-
-- [ ] Colaboração em tempo real
-- [ ] Integração com DAWs
-- [ ] Marketplace de cifras
-- [ ] Modo banda (navegação sincronizada entre dispositivos)
+- Não pode adicionar loading state visível em fluxos existentes
+- Não pode aumentar bundle > 20kb sem justificativa
+- Não pode bloquear render inicial
+- Medir before/after com Lighthouse

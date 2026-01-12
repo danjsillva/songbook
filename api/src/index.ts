@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid'
 import { parseHtmlToSongLines, generatePlainText, detectKey } from './parser'
 import { extractSongFromUrl, classifySongSections } from './groq'
+import { verifyFirebaseToken, getTokenFromRequest } from './auth'
 import type {
   Song, SongListItem, CreateSongInput, ExtractFromUrlInput,
   Setlist, SetlistListItem, SetlistSong, CreateSetlistInput,
@@ -10,13 +11,34 @@ import type {
 export interface Env {
   DB: D1Database
   GROQ_API_KEY: string
+  FIREBASE_PROJECT_ID: string
 }
 
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+// Auth helper - returns user ID or null if not authenticated
+async function requireAuth(request: Request, env: Env): Promise<string | Response> {
+  if (!env.FIREBASE_PROJECT_ID) {
+    // Auth not configured, allow all requests (dev mode)
+    return 'anonymous'
+  }
+
+  const token = getTokenFromRequest(request)
+  if (!token) {
+    return error('Authentication required', 401)
+  }
+
+  const payload = await verifyFirebaseToken(token, env.FIREBASE_PROJECT_ID)
+  if (!payload) {
+    return error('Invalid token', 401)
+  }
+
+  return payload.sub
 }
 
 function json(data: unknown, status = 200): Response {
@@ -581,8 +603,11 @@ export default {
         return listSongs(env.DB)
       }
 
-      // POST /api/songs
+      // POST /api/songs (protected)
       if (path === '/api/songs' && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<CreateSongInput>()
         if (!input.title || !input.artist || !input.html) {
           return error('Missing required fields: title, artist, html')
@@ -596,9 +621,12 @@ export default {
         return markSongViewed(env.DB, songViewMatch[1])
       }
 
-      // POST /api/songs/:id/classify
+      // POST /api/songs/:id/classify (protected)
       const songClassifyMatch = path.match(/^\/api\/songs\/([^/]+)\/classify$/)
       if (songClassifyMatch && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         if (!env.GROQ_API_KEY) {
           return error('GROQ_API_KEY not configured', 500)
         }
@@ -619,8 +647,11 @@ export default {
         return getSong(env.DB, songMatch[1])
       }
 
-      // PUT /api/songs/:id
+      // PUT /api/songs/:id (protected)
       if (songMatch && method === 'PUT') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<CreateSongInput>()
         if (!input.title || !input.artist || !input.html) {
           return error('Missing required fields: title, artist, html')
@@ -628,8 +659,11 @@ export default {
         return updateSong(env.DB, songMatch[1], input)
       }
 
-      // DELETE /api/songs/:id
+      // DELETE /api/songs/:id (protected)
       if (songMatch && method === 'DELETE') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         return deleteSong(env.DB, songMatch[1])
       }
 
@@ -639,8 +673,11 @@ export default {
         return searchSongs(env.DB, query)
       }
 
-      // POST /api/extract - Extrai dados de uma URL via Groq LLM
+      // POST /api/extract - Extrai dados de uma URL via Groq LLM (protected)
       if (path === '/api/extract' && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<ExtractFromUrlInput>()
 
         if (!input.url) {
@@ -675,8 +712,11 @@ export default {
         return listSetlists(env.DB)
       }
 
-      // POST /api/setlists
+      // POST /api/setlists (protected)
       if (path === '/api/setlists' && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<CreateSetlistInput>()
         if (!input.name || !input.date) {
           return error('Missing required fields: name, date')
@@ -696,15 +736,26 @@ export default {
         const id = setlistMatch[1]
         if (method === 'GET') return getSetlist(env.DB, id)
         if (method === 'PUT') {
+          const auth = await requireAuth(request, env)
+          if (auth instanceof Response) return auth
+
           const input = await request.json<UpdateSetlistInput>()
           return updateSetlist(env.DB, id, input)
         }
-        if (method === 'DELETE') return deleteSetlist(env.DB, id)
+        if (method === 'DELETE') {
+          const auth = await requireAuth(request, env)
+          if (auth instanceof Response) return auth
+
+          return deleteSetlist(env.DB, id)
+        }
       }
 
-      // POST /api/setlists/:id/songs
+      // POST /api/setlists/:id/songs (protected)
       const addSongMatch = path.match(/^\/api\/setlists\/([^/]+)\/songs$/)
       if (addSongMatch && method === 'POST') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<AddSongToSetlistInput>()
         if (!input.songId || !input.key) {
           return error('Missing required fields: songId, key')
@@ -712,19 +763,28 @@ export default {
         return addSongToSetlist(env.DB, addSongMatch[1], input)
       }
 
-      // PUT/DELETE /api/setlists/:id/items/:itemId
+      // PUT/DELETE /api/setlists/:id/items/:itemId (protected)
       const itemMatch = path.match(/^\/api\/setlists\/([^/]+)\/items\/([^/]+)$/)
       if (itemMatch && method === 'DELETE') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         return removeItemFromSetlist(env.DB, itemMatch[1], itemMatch[2])
       }
       if (itemMatch && method === 'PUT') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<UpdateSetlistSongInput>()
         return updateSetlistItem(env.DB, itemMatch[1], itemMatch[2], input)
       }
 
-      // PUT /api/setlists/:id/reorder
+      // PUT /api/setlists/:id/reorder (protected)
       const reorderMatch = path.match(/^\/api\/setlists\/([^/]+)\/reorder$/)
       if (reorderMatch && method === 'PUT') {
+        const auth = await requireAuth(request, env)
+        if (auth instanceof Response) return auth
+
         const input = await request.json<ReorderSetlistInput>()
         if (!input.itemIds) {
           return error('Missing required field: itemIds')
