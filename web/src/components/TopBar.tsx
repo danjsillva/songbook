@@ -191,14 +191,14 @@ export function TopBar({
                   <span className="text-xs text-neutral-500 truncate">{subtitle}</span>
                 )}
                 <div className="flex gap-1 ml-auto flex-shrink-0">
-                  {originalKey && (
-                    <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
-                      {originalKey}
-                    </span>
-                  )}
                   {bpm && (
                     <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
                       {bpm}
+                    </span>
+                  )}
+                  {originalKey && (
+                    <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
+                      {originalKey}
                     </span>
                   )}
                 </div>

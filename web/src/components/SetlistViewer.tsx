@@ -323,19 +323,19 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-neutral-400">{item.song.artist}</span>
           <div className="flex gap-1 ml-auto">
-            <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
-              {item.key}
-            </span>
-            {item.bpm && (
-              <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
-                {item.bpm}
-              </span>
-            )}
             {item.notes && (
               <span className="px-1.5 py-0.5 bg-emerald-900/50 text-emerald-400 rounded-full text-xs">
                 N
               </span>
             )}
+            {item.bpm && (
+              <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
+                {item.bpm}
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
+              {item.key}
+            </span>
           </div>
         </div>
       </button>
