@@ -21,10 +21,12 @@ jobs:
             api:
               - 'api/**'
               - 'shared/**'
+              - 'package*.json'
               - '.github/workflows/**'
             web:
               - 'web/**'
               - 'shared/**'
+              - 'package*.json'
               - '.github/workflows/**'
 
   deploy-api:
