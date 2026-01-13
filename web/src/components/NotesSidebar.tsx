@@ -1,4 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import {
+  X,
+  FileText,
+  Pencil,
+  Check,
+} from 'lucide-react'
 import type { SongLine } from '@songbook/shared'
 import { parseContent } from '../utils/parser'
 
@@ -8,34 +14,6 @@ interface NotesSidebarProps {
   minimized?: boolean
   onToggleMinimized?: () => void
   position?: 'top-right' | 'bottom-right'
-}
-
-const Icons = {
-  close: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  ),
-  expand: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  edit: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  ),
-  save: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  cancel: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  ),
 }
 
 function ChordLine({ line }: { line: SongLine }) {
@@ -56,7 +34,7 @@ function ChordLine({ line }: { line: SongLine }) {
     }
 
     return (
-      <div className="text-amber-400 font-bold whitespace-pre font-mono text-sm">
+      <div className="text-accent font-bold whitespace-pre font-mono text-sm">
         {chordLine}
       </div>
     )
@@ -66,37 +44,37 @@ function ChordLine({ line }: { line: SongLine }) {
     <div className="leading-relaxed">
       {renderChords()}
       {line.lyrics && (
-        <div className="whitespace-pre-wrap text-sm">{line.lyrics}</div>
+        <div className="whitespace-pre-wrap text-sm text-text-primary">{line.lyrics}</div>
       )}
     </div>
   )
 }
 
 export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized, position = 'top-right' }: NotesSidebarProps) {
-  // Estado interno de minimizado (usado se não for controlado externamente)
+  // Internal minimized state (used if not externally controlled)
   const [internalMinimized, setInternalMinimized] = useState(!notes.trim())
   const [isEditing, setIsEditing] = useState(false)
   const [editedNotes, setEditedNotes] = useState(notes)
   const [hasChanges, setHasChanges] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Usa estado externo se fornecido, senão usa interno
+  // Use external state if provided, otherwise use internal
   const isMinimized = minimized !== undefined ? minimized : internalMinimized
   const toggleMinimized = onToggleMinimized || (() => setInternalMinimized(m => !m))
 
 
-  // Atualizar quando notes muda (nova musica)
+  // Update when notes change (new song)
   useEffect(() => {
     setEditedNotes(notes)
     setHasChanges(false)
     setIsEditing(false)
-    // Minimizada se não tem notas, aberta se tem (só para estado interno)
+    // Minimized if no notes, open if has notes (only for internal state)
     if (minimized === undefined) {
       setInternalMinimized(!notes.trim())
     }
   }, [notes, minimized])
 
-  // Focar no textarea ao entrar em modo edicao
+  // Focus textarea when entering edit mode
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus()
@@ -135,54 +113,54 @@ export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized, posi
 
   const panelContent = (
     <div
-      className={`w-72 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl flex flex-col overflow-hidden ${
+      className={`w-80 bg-bg-elevated border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden animate-scale-in ${
         isBottom ? 'absolute bottom-full right-0 mb-3' : 'mt-3'
       }`}
       style={{ maxHeight: isBottom ? 'calc(100vh - 12rem)' : 'calc(100vh - 9rem)' }}
     >
-      {/* Toolbar - sempre no topo */}
-      <div className="px-3 py-2 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
-        <span className="text-sm font-medium text-neutral-300">Notas</span>
-        <div className="flex items-center gap-0.5">
+      {/* Toolbar - always at top */}
+      <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between flex-shrink-0">
+        <span className="text-sm font-medium text-text-primary">Notas</span>
+        <div className="flex items-center gap-1">
           {onSave && !isEditing && (
             <button
               onClick={handleEdit}
-              className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center text-text-tertiary hover:text-text-primary rounded-lg hover:bg-surface cursor-pointer transition-all duration-200"
               title="Editar"
             >
-              {Icons.edit}
+              <Pencil className="w-4 h-4" />
             </button>
           )}
           {isEditing && (
             <>
               <button
                 onClick={handleCancel}
-                className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center text-text-tertiary hover:text-text-primary rounded-lg hover:bg-surface cursor-pointer transition-all duration-200"
                 title="Cancelar"
               >
-                {Icons.cancel}
+                <X className="w-4 h-4" />
               </button>
               <button
                 onClick={handleSave}
                 disabled={!hasChanges}
-                className="p-1.5 text-amber-400 hover:text-amber-300 disabled:text-neutral-500 disabled:opacity-50 rounded-full hover:bg-neutral-800 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+                className="w-8 h-8 flex items-center justify-center text-teal hover:text-teal disabled:text-text-muted disabled:opacity-50 rounded-lg hover:bg-surface disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-all duration-200"
                 title="Salvar"
               >
-                {Icons.save}
+                <Check className="w-4 h-4" />
               </button>
             </>
           )}
         </div>
       </div>
 
-      {/* Conteudo */}
-      <div className={`flex-1 overflow-auto p-3 min-h-0 ${isEditing ? 'min-h-64' : ''}`}>
+      {/* Content */}
+      <div className={`flex-1 overflow-auto p-4 min-h-0 ${isEditing ? 'min-h-64' : ''}`}>
         {isEditing ? (
           <textarea
             ref={textareaRef}
             value={editedNotes}
             onChange={(e) => handleChange(e.target.value)}
-            className="w-full h-full min-h-56 bg-neutral-800 border border-neutral-700 rounded-lg p-2 text-sm font-mono resize-none focus:outline-none focus:border-neutral-600"
+            className="w-full h-full min-h-56 bg-surface border border-border rounded-xl p-3 text-sm font-mono resize-none focus:outline-none focus:border-border-hover focus:ring-1 focus:ring-border-hover transition-all duration-200"
             placeholder="Adicione suas notas aqui...
 
 Exemplo:
@@ -192,7 +170,7 @@ Intro com fingerstyle"
         ) : (
           <div className="font-mono space-y-0.5">
             {parsedLines.length === 0 ? (
-              <div className="text-neutral-500 text-sm">
+              <div className="text-text-tertiary text-sm">
                 {onSave ? 'Clique em editar para adicionar notas' : 'Sem notas'}
               </div>
             ) : (
@@ -204,9 +182,9 @@ Intro com fingerstyle"
         )}
       </div>
 
-      {/* Status de alteracoes */}
+      {/* Unsaved changes indicator */}
       {hasChanges && !isEditing && (
-        <div className="px-3 py-1.5 bg-amber-900/20 border-t border-amber-900/30 text-amber-200 text-xs flex-shrink-0">
+        <div className="px-4 py-2 bg-accent-subtle/50 border-t border-accent-subtle text-accent text-xs flex-shrink-0 font-medium">
           Alteracoes nao salvas
         </div>
       )}
@@ -216,18 +194,18 @@ Intro com fingerstyle"
   const toggleButton = (
     <button
       onClick={toggleMinimized}
-      className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors cursor-pointer ${
+      className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border border-border ${
         isMinimized
-          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-          : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-300'
+          ? 'bg-teal hover:bg-teal/90 text-bg-primary'
+          : 'bg-surface-active hover:bg-surface text-text-secondary'
       }`}
       title={isMinimized ? "Expandir notas (n)" : "Fechar notas (n)"}
     >
-      {isMinimized ? Icons.expand : Icons.close}
+      {isMinimized ? <FileText className="w-5 h-5" /> : <X className="w-5 h-5" />}
     </button>
   )
 
-  // Mobile (bottom-right): botão embaixo, popup acima
+  // Mobile (bottom-right): button at bottom, popup above
   if (isBottom) {
     return (
       <div className="relative">
@@ -237,7 +215,7 @@ Intro com fingerstyle"
     )
   }
 
-  // Desktop (top-right): botão em cima, popup abaixo
+  // Desktop (top-right): button at top, popup below
   return (
     <div className="flex flex-col items-end">
       {toggleButton}
