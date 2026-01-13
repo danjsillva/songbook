@@ -228,7 +228,7 @@ export function TopBar({
                   </div>
                   <button
                     onClick={() => { setShowUserMenu(false); signOut() }}
-                    className="w-full px-4 py-3 text-left hover:bg-surface-hover text-sm cursor-pointer text-danger flex items-center gap-3 transition-colors duration-150"
+                    className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer text-danger flex items-center gap-3 transition-colors duration-150"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Sair</span>
@@ -302,7 +302,7 @@ export function TopBar({
                 </div>
                 <button
                   onClick={() => { setShowMobileMenu(false); signOut() }}
-                  className="w-full px-4 py-3 text-left hover:bg-surface-hover text-sm cursor-pointer flex items-center gap-3 text-danger transition-colors duration-150"
+                  className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer flex items-center gap-3 text-danger transition-colors duration-150"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sair</span>

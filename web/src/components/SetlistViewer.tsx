@@ -15,6 +15,7 @@ import { SearchModal, type SetlistSongData } from './SearchModal'
 import { parseContent } from '../utils/parser'
 import { songCache } from '../cache/songCache'
 import { AuthorBadge } from './AuthorBadge'
+import { useToast } from './Toast'
 import {
   DndContext,
   closestCenter,
@@ -343,6 +344,7 @@ export function SetlistViewer({
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState<SetlistSong | null>(null)
+  const { showToast } = useToast()
 
   // Mapping for quick navigation
   const songsInfo = useMemo<SetlistSongInfo[]>(() => {
@@ -423,7 +425,8 @@ export function SetlistViewer({
       setShowAddModal(false)
       loadSetlist()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao adicionar musica')
+      console.error('Erro ao adicionar musica:', err)
+      showToast(err instanceof Error ? err.message : 'Erro ao adicionar musica')
     }
   }
 
@@ -481,7 +484,8 @@ export function SetlistViewer({
       setEditingItem(null)
       loadSetlist()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao atualizar')
+      console.error('Erro ao atualizar:', err)
+      showToast(err instanceof Error ? err.message : 'Erro ao atualizar')
     }
   }
 

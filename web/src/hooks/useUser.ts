@@ -43,10 +43,14 @@ export function useUser(userId: string | null) {
     setLoading(true)
     const fetchPromise = api.users.get(userId)
       .then(user => {
+        console.log('[useUser] Fetched user:', userId, user)
         userCache.set(userId, user)
         return user
       })
-      .catch(() => null)
+      .catch((err) => {
+        console.error('[useUser] Failed to fetch user:', userId, err)
+        return null
+      })
       .finally(() => {
         pendingFetches.delete(userId)
       })

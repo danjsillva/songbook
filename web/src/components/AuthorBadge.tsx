@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useUser } from '../hooks/useUser'
 
 interface AuthorBadgeProps {
@@ -8,11 +9,19 @@ interface AuthorBadgeProps {
 export function AuthorBadge({ userId, size = 'sm' }: AuthorBadgeProps) {
   const { user, loading } = useUser(userId)
 
+  // Debug logging
+  useEffect(() => {
+    if (userId) {
+      console.log('[AuthorBadge] userId:', userId, 'loading:', loading, 'user:', user)
+    }
+  }, [userId, loading, user])
+
   if (!userId || loading) {
     return null
   }
 
   if (!user) {
+    console.warn('[AuthorBadge] User not found for userId:', userId)
     return null
   }
 

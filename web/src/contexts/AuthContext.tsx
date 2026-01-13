@@ -53,13 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Sync user profile to our backend
             try {
               const { api } = await import('../api/client')
-              await api.users.sync({
+              const syncedUser = await api.users.sync({
                 name: user.displayName,
                 email: user.email,
                 photoUrl: user.photoURL,
               })
-            } catch {
-              // Sync failed, non-critical
+              console.log('[AuthContext] User synced successfully:', syncedUser)
+            } catch (err) {
+              console.error('[AuthContext] User sync failed:', err)
             }
           } else {
             cachedToken = null

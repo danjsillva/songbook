@@ -9,6 +9,7 @@ import { SectionMinimap } from './SectionMinimap'
 import { AuthorBadge } from './AuthorBadge'
 import { api } from '../api/client'
 import { useMobileControls } from '../contexts/MobileControlsContext'
+import { useToast } from './Toast'
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp)
@@ -132,6 +133,7 @@ export function SongViewer({
   const [notesMinimized, setNotesMinimized] = useState(!notes?.trim())
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
   const { isMinimized: isMobileControlsMinimized, toggle: toggleMobileControls } = useMobileControls()
+  const { showToast } = useToast()
   const contentRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
   const isNavigatingRef = useRef(false)
@@ -190,8 +192,9 @@ export function SongViewer({
       onNotesUpdated?.(setlistItemId, newNotes || null)
     } catch (err) {
       console.error('Erro ao salvar notas:', err)
+      showToast(err instanceof Error ? err.message : 'Erro ao salvar notas')
     }
-  }, [setlistId, setlistItemId, onNotesUpdated])
+  }, [setlistId, setlistItemId, onNotesUpdated, showToast])
 
   const handleSelectKey = (key: string) => {
     if (song.originalKey) {

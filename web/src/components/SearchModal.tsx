@@ -335,7 +335,7 @@ Intro suave"
                       <button
                         key={song.id}
                         onClick={() => handleSelectSong(song)}
-                        className="w-full p-4 text-left bg-surface/50 hover:bg-surface border border-transparent hover:border-border transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
+                        className="w-full p-4 text-left hover:bg-surface/50 border border-transparent hover:border-border transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
                       >
                         <div className="min-w-0">
                           <div className="font-medium truncate text-text-primary">{song.title}</div>
@@ -358,7 +358,7 @@ Intro suave"
                       <button
                         key={setlist.id}
                         onClick={() => onSelectSetlist?.(setlist)}
-                        className="w-full p-4 text-left bg-surface/50 hover:bg-surface border border-transparent hover:border-border transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
+                        className="w-full p-4 text-left hover:bg-surface/50 border border-transparent hover:border-border transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
                       >
                         <div className="min-w-0">
                           <div className="font-medium truncate text-text-primary">{setlist.name}</div>
