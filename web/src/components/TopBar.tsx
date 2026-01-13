@@ -105,7 +105,7 @@ export function TopBar({
           <div className="flex flex-col min-w-0 flex-1">
             {/* Row 1: Title + subtitle (desktop) + edit */}
             <div className="flex items-baseline gap-3 min-w-0">
-              <h1 className="text-lg font-semibold text-text-primary truncate tracking-tight">
+              <h1 className="text-lg font-bold text-text-primary truncate tracking-tight">
                 {title}
               </h1>
               {subtitle && (

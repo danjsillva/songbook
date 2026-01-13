@@ -265,8 +265,9 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-3 py-4 px-4 -mx-4 rounded-2xl transition-all duration-200 ${
-        isDragging ? 'opacity-50 bg-surface z-10' : 'hover:bg-surface/50'
+      onClick={onViewSong}
+      className={`group flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 cursor-pointer border border-transparent ${
+        isDragging ? 'opacity-50 bg-surface z-10' : 'bg-surface/50 hover:bg-surface hover:border-border'
       }`}
     >
       <span className="text-text-tertiary w-6 text-center flex-shrink-0 font-mono text-sm">
@@ -276,16 +277,14 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
       <button
         {...attributes}
         {...listeners}
+        onClick={(e) => e.stopPropagation()}
         className="p-2 text-text-muted hover:text-text-secondary cursor-grab active:cursor-grabbing touch-none flex-shrink-0 transition-colors duration-200"
         title="Arrastar para reordenar"
       >
         <GripVertical className="w-5 h-5" />
       </button>
 
-      <button
-        onClick={onViewSong}
-        className="flex-1 text-left cursor-pointer min-w-0"
-      >
+      <div className="flex-1 min-w-0">
         <div className="font-medium text-text-primary truncate group-hover:text-accent transition-colors duration-200">
           {item.song.title}
         </div>
@@ -297,13 +296,13 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
             <Badge variant="accent" size="sm">{item.key}</Badge>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* 3-dot menu */}
       <div className="relative flex-shrink-0" ref={menuRef}>
         <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="w-9 h-9 flex items-center justify-center text-text-tertiary hover:text-text-primary cursor-pointer rounded-xl hover:bg-surface transition-all duration-200"
+          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}
+          className="w-9 h-9 flex items-center justify-center text-text-tertiary hover:text-text-primary cursor-pointer rounded-xl hover:bg-surface-hover transition-all duration-200"
           title="Opcoes"
         >
           <MoreVertical className="w-5 h-5" />
@@ -311,14 +310,14 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
         {showMenu && (
           <div className="absolute right-0 top-full mt-2 bg-bg-elevated border border-border rounded-xl shadow-lg py-2 min-w-[160px] z-50 animate-scale-in">
             <button
-              onClick={() => { setShowMenu(false); onEdit() }}
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit() }}
               className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer flex items-center gap-3 transition-colors duration-150"
             >
               <Pencil className="w-4 h-4 text-text-tertiary" />
               Editar
             </button>
             <button
-              onClick={() => { setShowMenu(false); onRemove() }}
+              onClick={(e) => { e.stopPropagation(); setShowMenu(false); onRemove() }}
               className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer flex items-center gap-3 text-danger transition-colors duration-150"
             >
               <Trash2 className="w-4 h-4" />
