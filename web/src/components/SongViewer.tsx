@@ -367,7 +367,7 @@ export function SongViewer({
       {/* FloatingControls Desktop - hidden on mobile */}
       <div
         className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
-        style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 14rem)', width: '12rem' }}
+        style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 17rem)', width: '12rem' }}
       >
         <FloatingControls
           currentKey={currentKey}
@@ -384,7 +384,7 @@ export function SongViewer({
       {sectionIndices.length > 0 && (
         <div
           className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
-          style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 2rem)', width: '4rem' }}
+          style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 5rem)', width: '4rem' }}
         >
           <SectionMinimap
             content={song.content}
