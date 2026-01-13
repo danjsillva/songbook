@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react'
+import {
+  Check,
+  Trash2,
+  Loader2,
+} from 'lucide-react'
 import { api } from '../api/client'
 import { Layout } from './Layout'
 
@@ -10,19 +15,6 @@ interface SetlistFormProps {
   onSearch: () => void
   onAddSong: () => void
   onAddSetlist: () => void
-}
-
-const Icons = {
-  save: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  delete: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  ),
 }
 
 export function SetlistForm({
@@ -114,11 +106,17 @@ export function SetlistForm({
     }
   }
 
+  const inputClasses = "w-full px-4 py-3 bg-surface border border-border rounded-xl focus:outline-none focus:border-border-hover focus:ring-1 focus:ring-border-hover text-text-primary placeholder:text-text-muted transition-all duration-200"
+  const labelClasses = "block text-sm font-medium text-text-secondary mb-2"
+
   if (loading) {
     return (
       <Layout title="Carregando..." onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-neutral-400">Carregando...</div>
+        <div className="h-full flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-accent animate-spin" />
+            <span className="text-text-tertiary text-sm">Carregando...</span>
+          </div>
         </div>
       </Layout>
     )
@@ -131,17 +129,17 @@ export function SetlistForm({
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
       actions={
-        <>
+        <div className="flex items-center gap-2">
           {isEditing && onDelete && (
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="px-3 py-1.5 bg-red-900 hover:bg-red-800 disabled:opacity-50 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
+              className="h-10 px-4 bg-danger-subtle hover:bg-danger-muted disabled:opacity-50 rounded-xl flex items-center gap-2 transition-all duration-200 text-sm font-medium cursor-pointer disabled:cursor-not-allowed text-danger"
             >
               {deleting ? (
-                <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                Icons.delete
+                <Trash2 className="w-4 h-4" />
               )}
               <span className="hidden sm:inline">Excluir</span>
             </button>
@@ -149,46 +147,47 @@ export function SetlistForm({
           <button
             onClick={handleSave}
             disabled={!canSave || saving}
-            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
+            className="h-10 px-5 bg-accent hover:bg-accent-hover disabled:bg-surface disabled:text-text-muted rounded-xl flex items-center gap-2 transition-all duration-200 text-sm font-semibold cursor-pointer disabled:cursor-not-allowed text-bg-primary"
           >
             {saving ? (
-              <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              Icons.save
+              <Check className="w-4 h-4" />
             )}
             <span className="hidden sm:inline">Salvar</span>
           </button>
-        </>
+        </div>
       }
     >
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-5xl mx-auto">
-            <div className="max-w-md space-y-4">
+        <div className="flex-1 overflow-auto p-6 lg:p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="max-w-md space-y-5">
               {error && (
-                <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+                <div className="p-4 bg-danger-subtle border border-danger-muted rounded-xl text-danger">
                   {error}
                 </div>
               )}
 
               <div>
-                <label className="block text-sm text-neutral-400 mb-1">Nome *</label>
+                <label className={labelClasses}>Nome *</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Culto Domingo"
-                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg focus:outline-none focus:border-neutral-500"
+                  className={inputClasses}
+                  autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-neutral-400 mb-1">Data *</label>
+                <label className={labelClasses}>Data *</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg focus:outline-none focus:border-neutral-500"
+                  className={inputClasses}
                 />
               </div>
             </div>

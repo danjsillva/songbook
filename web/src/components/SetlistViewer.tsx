@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  X,
+  GripVertical,
+  MoreVertical,
+  Loader2,
+} from 'lucide-react'
 import { api } from '../api/client'
 import type { Setlist, SongListItem, SetlistSong, SongLine } from '@songbook/shared'
-import { Layout } from './Layout'
+import { Layout, Badge } from './Layout'
 import { SearchModal, type SetlistSongData } from './SearchModal'
 import { parseContent } from '../utils/parser'
 import { songCache } from '../cache/songCache'
@@ -41,44 +50,6 @@ interface SetlistViewerProps {
   onAddSetlist: () => void
 }
 
-const Icons = {
-  edit: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  ),
-  addToList: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  ),
-  remove: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  ),
-  editSmall: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  ),
-  close: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  ),
-  dragHandle: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-    </svg>
-  ),
-  moreVertical: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-    </svg>
-  ),
-}
-
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-')
   return `${day}/${month}/${year}`
@@ -91,7 +62,7 @@ function formatTimestamp(timestamp: number): string {
 
 function NotesPreview({ lines }: { lines: SongLine[] }) {
   if (lines.length === 0) {
-    return <div className="text-neutral-500 text-sm">Preview das notas...</div>
+    return <div className="text-text-tertiary text-sm">Preview das notas...</div>
   }
 
   return (
@@ -99,7 +70,7 @@ function NotesPreview({ lines }: { lines: SongLine[] }) {
       {lines.map((line, i) => (
         <div key={i}>
           {line.chords.length > 0 && (
-            <div className="text-amber-400 font-bold whitespace-pre">
+            <div className="text-accent font-bold whitespace-pre">
               {line.chords.map((c, j) => {
                 const prevEnd = j > 0 ? line.chords[j-1].position + line.chords[j-1].chord.length : 0
                 const spaces = Math.max(0, c.position - prevEnd)
@@ -108,7 +79,7 @@ function NotesPreview({ lines }: { lines: SongLine[] }) {
             </div>
           )}
           {line.lyrics ? (
-            <div className="whitespace-pre-wrap">{line.lyrics}</div>
+            <div className="whitespace-pre-wrap text-text-primary">{line.lyrics}</div>
           ) : line.chords.length === 0 ? (
             <div className="h-3" />
           ) : null}
@@ -154,72 +125,66 @@ function EditItemModal({ item, onClose, onSave }: EditItemModalProps) {
     })
   }
 
+  const inputClasses = "w-full px-4 py-3 bg-surface border border-border rounded-xl focus:outline-none focus:border-border-hover focus:ring-1 focus:ring-border-hover text-text-primary placeholder:text-text-muted transition-all duration-200"
+
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 pt-16 sm:pt-20 px-4 pb-4"
       onClick={onClose}
     >
       <div
-        className="bg-neutral-900 rounded-lg w-full max-w-2xl"
+        className="bg-bg-elevated rounded-2xl w-full max-w-2xl max-h-[calc(100vh-6rem)] flex flex-col animate-scale-in border border-border"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-neutral-700 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-100">Editar no Setlist</h2>
+        <div className="p-5 border-b border-border-subtle flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-text-primary">Editar no Setlist</h2>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-text-tertiary hover:text-text-primary rounded-xl hover:bg-surface cursor-pointer transition-all duration-200"
           >
-            {Icons.close}
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-5 overflow-auto">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="font-medium text-lg text-neutral-100">{item.song.title}</div>
-              <div className="text-neutral-400">{item.song.artist}</div>
+              <div className="font-medium text-lg text-text-primary">{item.song.title}</div>
+              <div className="text-text-tertiary">{item.song.artist}</div>
             </div>
-            <div className="flex gap-1 flex-shrink-0">
-              {item.song.bpm && (
-                <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
-                  {item.song.bpm}bpm
-                </span>
-              )}
-              {item.song.originalKey && (
-                <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
-                  {item.song.originalKey}
-                </span>
-              )}
+            <div className="flex gap-1.5 flex-shrink-0">
+              {item.song.bpm && <Badge size="sm">{item.song.bpm} bpm</Badge>}
+              {item.song.originalKey && <Badge variant="accent" size="sm">{item.song.originalKey}</Badge>}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-neutral-400 mb-1">Tom *</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">Tom *</label>
               <input
                 type="text"
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 placeholder="Ex: G, Am, C#m"
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
+                className={inputClasses}
                 autoFocus
               />
             </div>
             <div>
-              <label className="block text-sm text-neutral-400 mb-1">BPM</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">BPM</label>
               <input
                 type="number"
                 value={bpm}
                 onChange={(e) => setBpm(e.target.value)}
                 placeholder="Ex: 120"
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
+                className={inputClasses}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-neutral-400 mb-1">Notas</label>
-            <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm font-medium text-text-secondary mb-2">Notas</label>
+            <div className="grid grid-cols-2 gap-4">
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -229,25 +194,25 @@ Ex:
 G  D  Em  C
 Intro suave"
                 rows={6}
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 resize-none placeholder:text-neutral-500 font-mono text-sm"
+                className={`${inputClasses} resize-none font-mono text-sm`}
               />
-              <div className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg overflow-auto max-h-[156px]">
+              <div className="px-4 py-3 bg-surface border border-border rounded-xl overflow-auto max-h-[168px]">
                 <NotesPreview lines={parsedNotes} />
               </div>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-full text-sm cursor-pointer"
+              className="flex-1 h-12 bg-surface hover:bg-surface-hover rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 text-text-secondary"
             >
               Cancelar
             </button>
             <button
               onClick={handleSubmit}
               disabled={!key.trim()}
-              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full text-sm cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 h-12 bg-accent hover:bg-accent-hover disabled:bg-surface disabled:text-text-muted rounded-xl text-sm font-semibold cursor-pointer disabled:cursor-not-allowed transition-all duration-200 text-bg-primary"
             >
               Salvar
             </button>
@@ -284,7 +249,7 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
     transition,
   }
 
-  // Fechar menu ao clicar fora
+  // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return
     const handleClick = (e: MouseEvent) => {
@@ -300,69 +265,63 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 py-3 hover:bg-neutral-800 -mx-4 px-4 rounded-lg transition-colors ${
-        isDragging ? 'opacity-50 bg-neutral-800 z-10' : ''
+      className={`group flex items-center gap-3 py-4 px-4 -mx-4 rounded-2xl transition-all duration-200 ${
+        isDragging ? 'opacity-50 bg-surface z-10' : 'hover:bg-surface/50'
       }`}
     >
-      <span className="text-neutral-500 w-6 text-center flex-shrink-0">{index + 1}</span>
+      <span className="text-text-tertiary w-6 text-center flex-shrink-0 font-mono text-sm">
+        {index + 1}
+      </span>
 
       <button
         {...attributes}
         {...listeners}
-        className="p-2 text-neutral-400 hover:text-white cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+        className="p-2 text-text-muted hover:text-text-secondary cursor-grab active:cursor-grabbing touch-none flex-shrink-0 transition-colors duration-200"
         title="Arrastar para reordenar"
       >
-        {Icons.dragHandle}
+        <GripVertical className="w-5 h-5" />
       </button>
 
       <button
         onClick={onViewSong}
-        className="flex-1 text-left ml-1 cursor-pointer min-w-0"
+        className="flex-1 text-left cursor-pointer min-w-0"
       >
-        <div className="font-medium truncate">{item.song.title}</div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-neutral-400">{item.song.artist}</span>
-          <div className="flex gap-1 ml-auto">
-            {item.notes && (
-              <span className="px-1.5 py-0.5 bg-emerald-900/50 text-emerald-400 rounded-full text-xs">
-                N
-              </span>
-            )}
-            {item.bpm && (
-              <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
-                {item.bpm}
-              </span>
-            )}
-            <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
-              {item.key}
-            </span>
+        <div className="font-medium text-text-primary truncate group-hover:text-accent transition-colors duration-200">
+          {item.song.title}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-sm text-text-tertiary truncate">{item.song.artist}</span>
+          <div className="flex gap-1.5 ml-auto flex-shrink-0">
+            {item.notes && <Badge variant="teal" size="sm">N</Badge>}
+            {item.bpm && <Badge size="sm">{item.bpm}</Badge>}
+            <Badge variant="accent" size="sm">{item.key}</Badge>
           </div>
         </div>
       </button>
 
-      {/* Menu de 3 pontinhos */}
+      {/* 3-dot menu */}
       <div className="relative flex-shrink-0" ref={menuRef}>
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="p-2 text-neutral-400 hover:text-white cursor-pointer rounded-full hover:bg-neutral-700"
+          className="w-9 h-9 flex items-center justify-center text-text-tertiary hover:text-text-primary cursor-pointer rounded-xl hover:bg-surface transition-all duration-200"
           title="Opcoes"
         >
-          {Icons.moreVertical}
+          <MoreVertical className="w-5 h-5" />
         </button>
         {showMenu && (
-          <div className="absolute right-0 top-full mt-1 bg-neutral-800 rounded-lg shadow-lg py-1 min-w-[140px] z-50 border border-neutral-700">
+          <div className="absolute right-0 top-full mt-2 bg-bg-elevated border border-border rounded-xl shadow-lg py-2 min-w-[160px] z-50 animate-scale-in">
             <button
               onClick={() => { setShowMenu(false); onEdit() }}
-              className="w-full px-3 py-2 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-2"
+              className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer flex items-center gap-3 transition-colors duration-150"
             >
-              {Icons.editSmall}
+              <Pencil className="w-4 h-4 text-text-tertiary" />
               Editar
             </button>
             <button
               onClick={() => { setShowMenu(false); onRemove() }}
-              className="w-full px-3 py-2 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-2 text-red-400"
+              className="w-full px-4 py-3 text-left hover:bg-surface text-sm cursor-pointer flex items-center gap-3 text-danger transition-colors duration-150"
             >
-              {Icons.remove}
+              <Trash2 className="w-4 h-4" />
               Remover
             </button>
           </div>
@@ -386,7 +345,7 @@ export function SetlistViewer({
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState<SetlistSong | null>(null)
 
-  // Mapeamento para navegação rápida
+  // Mapping for quick navigation
   const songsInfo = useMemo<SetlistSongInfo[]>(() => {
     if (!setlist) return []
     return setlist.songs.map(s => ({
@@ -413,22 +372,20 @@ export function SetlistViewer({
     loadSetlist()
   }, [loadSetlist])
 
-  // Prefetch de todas as músicas do setlist em background
-  // Limpa cache anterior (1 setlist por vez = memória controlada)
-  // Quando o usuário navegar, a música já estará no cache = ZERO loading
+  // Prefetch all setlist songs in background
   useEffect(() => {
     if (!setlist || setlist.songs.length === 0) return
     const songIds = setlist.songs.map(s => s.songId)
     songCache.prefetchSetlist(songIds)
   }, [setlist])
 
-  // Atalhos de teclado
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignorar se modal estiver aberto
+      // Ignore if modal is open
       if (showAddModal || editingItem) {
         if (e.key === 'Escape') {
-          // ESC é tratado pelos modais
+          // ESC is handled by modals
         }
         return
       }
@@ -481,7 +438,7 @@ export function SetlistViewer({
     }
   }
 
-  // Sensors para drag and drop - delay no touch para não conflitar com scroll
+  // Sensors for drag and drop - delay on touch to not conflict with scroll
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(TouchSensor, {
@@ -500,7 +457,7 @@ export function SetlistViewer({
     const newIndex = setlist.songs.findIndex(s => s.id === over.id)
     const newOrder = arrayMove(setlist.songs, oldIndex, newIndex)
 
-    // Optimistic update - atualiza UI imediatamente
+    // Optimistic update - update UI immediately
     setSetlist({ ...setlist, songs: newOrder })
 
     try {
@@ -509,7 +466,7 @@ export function SetlistViewer({
       })
     } catch (err) {
       console.error(err)
-      // Rollback em caso de erro
+      // Rollback on error
       loadSetlist()
     }
   }
@@ -532,8 +489,11 @@ export function SetlistViewer({
   if (loading) {
     return (
       <Layout title="Carregando..." onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-neutral-400">Carregando...</div>
+        <div className="h-full flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-accent animate-spin" />
+            <span className="text-text-tertiary text-sm">Carregando...</span>
+          </div>
         </div>
       </Layout>
     )
@@ -542,8 +502,8 @@ export function SetlistViewer({
   if (!setlist) {
     return (
       <Layout title="Erro" onSearch={onSearch} onAddSong={onAddSong} onAddSetlist={onAddSetlist}>
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-neutral-400">Setlist nao encontrado</div>
+        <div className="h-full flex items-center justify-center">
+          <div className="text-text-tertiary">Setlist nao encontrado</div>
         </div>
       </Layout>
     )
@@ -560,19 +520,24 @@ export function SetlistViewer({
       actions={
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer"
+          className="h-10 px-5 bg-accent hover:bg-accent-hover rounded-xl flex items-center gap-2 transition-all duration-200 text-sm font-semibold cursor-pointer text-bg-primary"
         >
-          {Icons.addToList}
+          <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Adicionar</span>
         </button>
       }
     >
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-5xl mx-auto">
+        <div className="flex-1 overflow-auto p-6 lg:p-8">
+          <div className="max-w-4xl mx-auto">
             {setlist.songs.length === 0 ? (
-              <div className="py-8 text-center text-neutral-500">
-                Nenhuma musica no setlist. Clique em + para adicionar.
+              <div className="py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-surface flex items-center justify-center mx-auto mb-4">
+                  <Plus className="w-8 h-8 text-text-tertiary" />
+                </div>
+                <p className="text-text-tertiary">
+                  Nenhuma musica no setlist. Clique em Adicionar para comecar.
+                </p>
               </div>
             ) : (
               <DndContext
@@ -600,8 +565,8 @@ export function SetlistViewer({
               </DndContext>
             )}
 
-            {/* Rodapé com data e autor */}
-            <div className="mt-8 pt-4 border-t border-neutral-800 flex items-center gap-2 text-sm text-neutral-500">
+            {/* Footer with date and author */}
+            <div className="mt-12 pt-6 border-t border-border-subtle flex items-center gap-2 text-sm text-text-tertiary">
               <span>Criado em {formatTimestamp(setlist.createdAt)}</span>
               {setlist.createdBy && (
                 <>

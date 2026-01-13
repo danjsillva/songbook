@@ -50,7 +50,7 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
   isFirstLine: boolean
 }>(({ line, transpose, preference, isFirstLine }, ref) => {
   if (line.chords.length === 0 && !line.lyrics && !line.section) {
-    return <div ref={ref} className="h-4" />
+    return <div ref={ref} className="h-5" />
   }
 
   const renderChords = () => {
@@ -67,7 +67,7 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
     }
 
     return (
-      <div className="text-amber-400 font-bold whitespace-pre font-mono">
+      <div className="text-accent font-bold whitespace-pre font-mono">
         {chordLine}
       </div>
     )
@@ -75,20 +75,20 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
 
   const sectionColor = line.section ? getSectionColor(line.section) : ''
 
-  // Margem apenas em seções que não são a primeira linha
+  // Margin only for sections that are not the first line
   const needsTopMargin = line.section && !isFirstLine
 
   return (
     <div
       ref={ref}
-      className={`leading-relaxed ${needsTopMargin ? 'mt-6' : ''}`}
+      className={`leading-relaxed ${needsTopMargin ? 'mt-8' : ''}`}
     >
       {line.section && (
         <span
-          className="inline-block px-2 py-0.5 rounded text-xs uppercase tracking-wide mb-1"
+          className="inline-block px-3 py-1 rounded-lg text-xs uppercase tracking-wider font-medium mb-2"
           style={{
             color: sectionColor,
-            backgroundColor: sectionColor.replace('hsl(', 'hsla(').replace(')', ', 0.2)')
+            backgroundColor: sectionColor.replace('hsl(', 'hsla(').replace(')', ', 0.15)')
           }}
         >
           {line.section}
@@ -96,7 +96,7 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
       )}
       {renderChords()}
       {line.lyrics && (
-        <div className="whitespace-pre-wrap">{line.lyrics}</div>
+        <div className="whitespace-pre-wrap text-text-primary">{line.lyrics}</div>
       )}
     </div>
   )
@@ -147,11 +147,11 @@ export function SongViewer({
     return indices
   }, [song.content])
 
-  // Atualizar estado quando mudar o item do setlist (mesmo que seja a mesma musica)
+  // Update state when setlist item changes (even if same song)
   useEffect(() => {
     setLocalNotes(notes || '')
     setNotesMinimized(!notes?.trim())
-    // Recalcular transpose baseado no novo tom
+    // Recalculate transpose based on new key
     if (initialTranspose && song.originalKey) {
       setTranspose(getSemitonesBetweenKeys(song.originalKey, initialTranspose))
     } else {
@@ -161,12 +161,12 @@ export function SongViewer({
 
   const currentKey = getKeyFromSemitones(song.originalKey, transpose, preference)
 
-  // Foco automático no container ao entrar na música
+  // Auto-focus container on song entry
   useEffect(() => {
     contentRef.current?.focus({ preventScroll: true })
   }, [song.id])
 
-  // Posição atual no setlist e navegação
+  // Current position in setlist and navigation
   const currentPosition = setlistSongs?.findIndex(s => s.itemId === setlistItemId) ?? -1
   const canGoPrev = currentPosition > 0
   const canGoNext = currentPosition >= 0 && currentPosition < (setlistSongs?.length ?? 0) - 1
@@ -199,10 +199,10 @@ export function SongViewer({
     }
   }
 
-  // Posição alvo: 24px do topo do container (igual ao padding p-6)
+  // Target position: 24px from container top (same as p-6 padding)
   const TARGET_OFFSET = 24
 
-  // Scroll to section - posiciona TODAS as seções no MESMO pixel exato
+  // Scroll to section - positions ALL sections at the SAME exact pixel
   const handleNavigateToSection = useCallback((lineIndex: number) => {
     const sectionIdx = sectionIndices.indexOf(lineIndex)
     if (sectionIdx !== -1) {
@@ -215,14 +215,14 @@ export function SongViewer({
     const lineEl = lineRefs.current[lineIndex]
 
     if (container && lineEl) {
-      // Usar getBoundingClientRect para cálculo preciso
+      // Use getBoundingClientRect for precise calculation
       const containerRect = container.getBoundingClientRect()
       const lineRect = lineEl.getBoundingClientRect()
 
-      // Posição atual do elemento relativa ao container + scroll atual
+      // Current element position relative to container + current scroll
       const lineTopRelative = lineRect.top - containerRect.top + container.scrollTop
 
-      // Scroll para que o elemento fique exatamente em TARGET_OFFSET
+      // Scroll so element is exactly at TARGET_OFFSET
       const scrollTop = lineTopRelative - TARGET_OFFSET
       container.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' })
     }
@@ -232,7 +232,7 @@ export function SongViewer({
     }, 500)
   }, [sectionIndices])
 
-  // Track current section on scroll - com throttle via requestAnimationFrame
+  // Track current section on scroll - with throttle via requestAnimationFrame
   useEffect(() => {
     const container = contentRef.current
     if (!container || sectionIndices.length === 0) return
@@ -243,7 +243,7 @@ export function SongViewer({
     const updateSection = () => {
       rafId = null
 
-      // Ignora durante navegação programática
+      // Ignore during programmatic navigation
       if (isNavigatingRef.current) return
 
       const containerTop = container.getBoundingClientRect().top
@@ -260,7 +260,7 @@ export function SongViewer({
         }
       }
 
-      // Só atualiza state se mudou (evita re-renders desnecessários)
+      // Only update state if changed (avoid unnecessary re-renders)
       if (activeIndex !== lastActiveIndex) {
         lastActiveIndex = activeIndex
         setCurrentSectionIndex(activeIndex)
@@ -268,7 +268,7 @@ export function SongViewer({
     }
 
     const handleScroll = () => {
-      // Throttle: máximo 1 execução por frame (60fps)
+      // Throttle: max 1 execution per frame (60fps)
       if (rafId === null) {
         rafId = requestAnimationFrame(updateSection)
       }
@@ -284,7 +284,7 @@ export function SongViewer({
   }, [sectionIndices])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Ignorar se estiver em input/textarea
+    // Ignore if in input/textarea
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
     switch (e.key) {
@@ -342,7 +342,7 @@ export function SongViewer({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Preparar props do setlistNav para a TopBar
+  // Prepare setlistNav props for TopBar
   const setlistNav = currentPosition >= 0 && setlistSongs ? {
     current: currentPosition + 1,
     total: setlistSongs.length,
@@ -367,7 +367,7 @@ export function SongViewer({
       {/* FloatingControls Desktop - hidden on mobile */}
       <div
         className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
-        style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-32rem - 16rem)', width: '12rem' }}
+        style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 14rem)', width: '12rem' }}
       >
         <FloatingControls
           currentKey={currentKey}
@@ -384,7 +384,7 @@ export function SongViewer({
       {sectionIndices.length > 0 && (
         <div
           className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
-          style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-32rem - 6rem)', width: '4rem' }}
+          style={{ top: 'calc(3.5rem + 3rem)', marginLeft: 'calc(-28rem - 2rem)', width: '4rem' }}
         >
           <SectionMinimap
             content={song.content}
@@ -395,7 +395,7 @@ export function SongViewer({
       )}
 
       {/* FloatingControls Mobile - visible only on mobile */}
-      <div className="lg:hidden fixed z-40 bottom-4 left-4">
+      <div className="lg:hidden fixed z-40 bottom-6 left-6">
         <FloatingControls
           currentKey={currentKey}
           onTransposeDown={() => setTranspose(t => t - 1)}
@@ -409,14 +409,14 @@ export function SongViewer({
         />
       </div>
 
-      {/* Conteudo scrollável */}
+      {/* Scrollable content */}
       <div
         ref={contentRef}
         tabIndex={0}
-        className="flex-1 p-6 overflow-auto outline-none"
+        className="flex-1 p-6 lg:p-8 overflow-auto outline-none scroll-smooth"
         style={{ fontSize: `${fontSize}px` }}
       >
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="font-mono space-y-1">
             {song.content.map((line, i) => (
               <ChordLine
@@ -430,8 +430,8 @@ export function SongViewer({
             ))}
           </div>
 
-          {/* Rodapé com data e autor */}
-          <div className="mt-12 pt-4 border-t border-neutral-800 flex items-center gap-2 text-sm text-neutral-500">
+          {/* Footer with date and author */}
+          <div className="mt-16 pt-6 border-t border-border-subtle flex items-center gap-2 text-sm text-text-tertiary">
             <span>Criado em {formatDate(song.createdAt)}</span>
             {song.createdBy && (
               <>
@@ -443,11 +443,11 @@ export function SongViewer({
         </div>
       </div>
 
-      {/* Painel flutuante de notas - Desktop (quando vem de um setlist) */}
+      {/* Floating notes panel - Desktop (when from a setlist) */}
       {setlistItemId && (
         <div
           className="hidden lg:block fixed z-40"
-          style={{ top: '6rem', right: '3rem' }}
+          style={{ top: '6rem', right: '2rem' }}
         >
           <NotesSidebar
             notes={localNotes}
@@ -458,9 +458,9 @@ export function SongViewer({
         </div>
       )}
 
-      {/* Painel flutuante de notas - Mobile (quando vem de um setlist) */}
+      {/* Floating notes panel - Mobile (when from a setlist) */}
       {setlistItemId && (
-        <div className="lg:hidden fixed z-40 bottom-4 right-4">
+        <div className="lg:hidden fixed z-40 bottom-6 right-6">
           <NotesSidebar
             notes={localNotes}
             onSave={handleSaveNotes}

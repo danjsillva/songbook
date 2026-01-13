@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import {
+  X,
+  Search,
+  Loader2,
+} from 'lucide-react'
 import { api } from '../api/client'
 import type { SongListItem, SetlistListItem, SongLine } from '@songbook/shared'
 import { parseContent } from '../utils/parser'
+import { Badge } from './Layout'
 
-// Hook para debounce - evita recalcular filter a cada keystroke
+// Hook for debounce - avoids recalculating filter on every keystroke
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
@@ -26,21 +32,8 @@ interface SearchModalProps {
   onClose: () => void
   onSelectSong?: (song: SongListItem) => void
   onSelectSetlist?: (setlist: SetlistListItem) => void
-  // Para adicionar música ao setlist com tom, bpm e notas
+  // For adding song to setlist with key, bpm and notes
   onSelectSongWithDetails?: (song: SongListItem, data: SetlistSongData) => void
-}
-
-const Icons = {
-  close: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  ),
-  search: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  ),
 }
 
 function formatDate(dateStr: string): string {
@@ -50,7 +43,7 @@ function formatDate(dateStr: string): string {
 
 function NotesPreview({ lines }: { lines: SongLine[] }) {
   if (lines.length === 0) {
-    return <div className="text-neutral-500 text-sm">Preview das notas...</div>
+    return <div className="text-text-tertiary text-sm">Preview das notas...</div>
   }
 
   return (
@@ -58,7 +51,7 @@ function NotesPreview({ lines }: { lines: SongLine[] }) {
       {lines.map((line, i) => (
         <div key={i}>
           {line.chords.length > 0 && (
-            <div className="text-amber-400 font-bold whitespace-pre">
+            <div className="text-accent font-bold whitespace-pre">
               {line.chords.map((c, j) => {
                 const prevEnd = j > 0 ? line.chords[j-1].position + line.chords[j-1].chord.length : 0
                 const spaces = Math.max(0, c.position - prevEnd)
@@ -67,7 +60,7 @@ function NotesPreview({ lines }: { lines: SongLine[] }) {
             </div>
           )}
           {line.lyrics ? (
-            <div className="whitespace-pre-wrap">{line.lyrics}</div>
+            <div className="whitespace-pre-wrap text-text-primary">{line.lyrics}</div>
           ) : line.chords.length === 0 ? (
             <div className="h-3" />
           ) : null}
@@ -96,7 +89,7 @@ export function SearchModal({
   const [notes, setNotes] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Debounce: só filtra após 150ms de inatividade
+  // Debounce: only filter after 150ms of inactivity
   const debouncedQuery = useDebouncedValue(query, 150)
 
   const parsedNotes = useMemo(() => {
@@ -108,7 +101,7 @@ export function SearchModal({
     inputRef.current?.focus()
   }, [])
 
-  // Carrega ambos os dados ao abrir
+  // Load both data on open
   useEffect(() => {
     api.songs.list().then((data) => {
       setSongs(data)
@@ -122,7 +115,7 @@ export function SearchModal({
 
   const loading = searchType === 'songs' ? loadingSongs : loadingSetlists
 
-  // Atalhos de teclado
+  // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation()
@@ -132,7 +125,7 @@ export function SearchModal({
         onClose()
       }
     }
-    // Tab alterna entre músicas e setlists (só quando não está na tela de detalhes)
+    // Tab toggles between songs and setlists (only when not on details screen)
     if (e.key === 'Tab' && !selectedSong) {
       e.preventDefault()
       setSearchType(prev => prev === 'songs' ? 'setlists' : 'songs')
@@ -145,7 +138,7 @@ export function SearchModal({
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [handleKeyDown])
 
-  // Filters memoizados com query debounced - evita O(n) a cada keystroke
+  // Memoized filters with debounced query - avoids O(n) on every keystroke
   const filteredSongs = useMemo(() => {
     const q = debouncedQuery.toLowerCase()
     if (!q) return songs
@@ -185,37 +178,39 @@ export function SearchModal({
     ? (selectedSong ? 'Adicionar ao Setlist' : 'Buscar')
     : 'Buscar'
 
+  const inputClasses = "w-full px-4 py-3 bg-surface border border-border rounded-xl focus:outline-none focus:border-border-hover focus:ring-1 focus:ring-border-hover text-text-primary placeholder:text-text-muted transition-all duration-200"
+
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 pt-20 px-4 pb-4"
+      className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 pt-16 sm:pt-20 px-4 pb-4"
       onClick={onClose}
     >
       <div
-        className="bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[calc(100vh-6rem)] flex flex-col"
+        className="bg-bg-elevated rounded-2xl w-full max-w-2xl max-h-[calc(100vh-6rem)] flex flex-col animate-scale-in border border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-neutral-700 flex items-center justify-between gap-4">
+        <div className="p-5 border-b border-border-subtle flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold text-neutral-100">{title}</h2>
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
             {!selectedSong && (
-              <div className="flex bg-neutral-800 rounded-lg p-1">
+              <div className="flex bg-surface rounded-xl p-1">
                 <button
                   onClick={() => { setSearchType('songs'); setQuery('') }}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 cursor-pointer font-medium ${
                     searchType === 'songs'
-                      ? 'bg-amber-600 text-white'
-                      : 'text-neutral-400 hover:text-white'
+                      ? 'bg-accent text-bg-primary'
+                      : 'text-text-tertiary hover:text-text-primary'
                   }`}
                 >
                   Musicas
                 </button>
                 <button
                   onClick={() => { setSearchType('setlists'); setQuery('') }}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 cursor-pointer font-medium ${
                     searchType === 'setlists'
-                      ? 'bg-amber-600 text-white'
-                      : 'text-neutral-400 hover:text-white'
+                      ? 'bg-accent text-bg-primary'
+                      : 'text-text-tertiary hover:text-text-primary'
                   }`}
                 >
                   Setlists
@@ -225,61 +220,53 @@ export function SearchModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-text-tertiary hover:text-text-primary rounded-xl hover:bg-surface cursor-pointer transition-all duration-200"
           >
-            {Icons.close}
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {selectedSong ? (
-          // Tela de configurar música para o setlist
-          <div className="p-4 space-y-4">
+          // Configure song for setlist screen
+          <div className="p-5 space-y-5 overflow-auto">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="font-medium text-lg text-neutral-100">{selectedSong.title}</div>
-                <div className="text-neutral-400">{selectedSong.artist}</div>
+                <div className="font-medium text-lg text-text-primary">{selectedSong.title}</div>
+                <div className="text-text-tertiary">{selectedSong.artist}</div>
               </div>
-              <div className="flex gap-1 flex-shrink-0">
-                {selectedSong.bpm && (
-                  <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
-                    {selectedSong.bpm}bpm
-                  </span>
-                )}
-                {selectedSong.originalKey && (
-                  <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
-                    {selectedSong.originalKey}
-                  </span>
-                )}
+              <div className="flex gap-1.5 flex-shrink-0">
+                {selectedSong.bpm && <Badge size="sm">{selectedSong.bpm} bpm</Badge>}
+                {selectedSong.originalKey && <Badge variant="accent" size="sm">{selectedSong.originalKey}</Badge>}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-neutral-400 mb-1">Tom *</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Tom *</label>
                 <input
                   type="text"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
                   placeholder="Ex: G, Am, C#m"
-                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
+                  className={inputClasses}
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm text-neutral-400 mb-1">BPM</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">BPM</label>
                 <input
                   type="number"
                   value={bpm}
                   onChange={(e) => setBpm(e.target.value)}
                   placeholder="Ex: 120"
-                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
+                  className={inputClasses}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-neutral-400 mb-1">Notas</label>
-              <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-medium text-text-secondary mb-2">Notas</label>
+              <div className="grid grid-cols-2 gap-4">
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -289,25 +276,25 @@ Ex:
 G  D  Em  C
 Intro suave"
                   rows={6}
-                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 resize-none placeholder:text-neutral-500 font-mono text-sm"
+                  className={`${inputClasses} resize-none font-mono text-sm`}
                 />
-                <div className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg overflow-auto max-h-[156px]">
+                <div className="px-4 py-3 bg-surface border border-border rounded-xl overflow-auto max-h-[168px]">
                   <NotesPreview lines={parsedNotes} />
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setSelectedSong(null)}
-                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-full text-sm cursor-pointer"
+                className="flex-1 h-12 bg-surface hover:bg-surface-hover rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 text-text-secondary"
               >
                 Voltar
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={!key.trim()}
-                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full text-sm cursor-pointer disabled:cursor-not-allowed"
+                className="flex-1 h-12 bg-accent hover:bg-accent-hover disabled:bg-surface disabled:text-text-muted rounded-xl text-sm font-semibold cursor-pointer disabled:cursor-not-allowed transition-all duration-200 text-bg-primary"
               >
                 Adicionar
               </button>
@@ -316,10 +303,10 @@ Intro suave"
         ) : (
           <>
             {/* Search input */}
-            <div className="p-4 border-b border-neutral-700">
+            <div className="p-5 border-b border-border-subtle">
               <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
-                  {Icons.search}
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
+                  <Search className="w-5 h-5" />
                 </div>
                 <input
                   ref={inputRef}
@@ -327,7 +314,7 @@ Intro suave"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={searchType === 'songs' ? 'Buscar musica...' : 'Buscar setlist...'}
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-800 border border-neutral-600 rounded-lg focus:outline-none focus:border-neutral-500 text-neutral-100 placeholder:text-neutral-500"
+                  className={`${inputClasses} pl-12`}
                 />
               </div>
             </div>
@@ -335,33 +322,28 @@ Intro suave"
             {/* Results */}
             <div className="flex-1 overflow-auto">
               {loading ? (
-                <div className="p-8 text-center text-neutral-500">Carregando...</div>
+                <div className="p-8 flex flex-col items-center gap-3">
+                  <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                  <span className="text-text-tertiary text-sm">Carregando...</span>
+                </div>
               ) : searchType === 'songs' ? (
                 filteredSongs.length === 0 ? (
-                  <div className="p-8 text-center text-neutral-500">Nenhuma musica encontrada</div>
+                  <div className="p-8 text-center text-text-tertiary">Nenhuma musica encontrada</div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="p-2">
                     {filteredSongs.map((song) => (
                       <button
                         key={song.id}
                         onClick={() => handleSelectSong(song)}
-                        className="w-full p-4 text-left hover:bg-neutral-800 transition-colors flex items-center justify-between gap-4 rounded-lg cursor-pointer"
+                        className="w-full p-4 text-left hover:bg-surface transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
                       >
                         <div className="min-w-0">
-                          <div className="font-medium truncate text-neutral-100">{song.title}</div>
-                          <div className="text-sm text-neutral-400 truncate">{song.artist}</div>
+                          <div className="font-medium truncate text-text-primary">{song.title}</div>
+                          <div className="text-sm text-text-tertiary truncate">{song.artist}</div>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {song.bpm && (
-                            <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
-                              {song.bpm}bpm
-                            </span>
-                          )}
-                          {song.originalKey && (
-                            <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
-                              {song.originalKey}
-                            </span>
-                          )}
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          {song.bpm && <Badge size="sm">{song.bpm}</Badge>}
+                          {song.originalKey && <Badge variant="accent" size="sm">{song.originalKey}</Badge>}
                         </div>
                       </button>
                     ))}
@@ -369,22 +351,20 @@ Intro suave"
                 )
               ) : (
                 filteredSetlists.length === 0 ? (
-                  <div className="p-8 text-center text-neutral-500">Nenhum setlist encontrado</div>
+                  <div className="p-8 text-center text-text-tertiary">Nenhum setlist encontrado</div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="p-2">
                     {filteredSetlists.map((setlist) => (
                       <button
                         key={setlist.id}
                         onClick={() => onSelectSetlist?.(setlist)}
-                        className="w-full p-4 text-left hover:bg-neutral-800 transition-colors flex items-center justify-between gap-4 cursor-pointer"
+                        className="w-full p-4 text-left hover:bg-surface transition-all duration-200 flex items-center justify-between gap-4 rounded-xl cursor-pointer"
                       >
                         <div className="min-w-0">
-                          <div className="font-medium truncate text-neutral-100">{setlist.name}</div>
-                          <div className="text-sm text-neutral-400">{formatDate(setlist.date)}</div>
+                          <div className="font-medium truncate text-text-primary">{setlist.name}</div>
+                          <div className="text-sm text-text-tertiary">{formatDate(setlist.date)}</div>
                         </div>
-                        <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono flex-shrink-0">
-                          {setlist.songCount}
-                        </span>
+                        <Badge size="sm">{setlist.songCount}</Badge>
                       </button>
                     ))}
                   </div>
