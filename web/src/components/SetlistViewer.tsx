@@ -267,7 +267,7 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
       style={style}
       onClick={onViewSong}
       className={`group flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 cursor-pointer border border-transparent ${
-        isDragging ? 'opacity-50 bg-surface z-10' : 'bg-surface/50 hover:bg-surface hover:border-border'
+        isDragging ? 'opacity-50 bg-surface z-10' : 'hover:bg-surface/50 hover:border-border'
       }`}
     >
       <span className="text-text-tertiary w-6 text-center flex-shrink-0 font-mono text-sm">
