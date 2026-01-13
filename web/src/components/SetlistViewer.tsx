@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { api } from '../api/client'
 import type { Setlist, SongListItem, SetlistSong, SongLine } from '@songbook/shared'
 import { Layout } from './Layout'
 import { SearchModal, type SetlistSongData } from './SearchModal'
 import { parseContent } from '../utils/parser'
 import { songCache } from '../cache/songCache'
+import { AuthorBadge } from './AuthorBadge'
 import {
   DndContext,
   closestCenter,
@@ -53,7 +54,7 @@ const Icons = {
   ),
   remove: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
     </svg>
   ),
   editSmall: (
@@ -71,11 +72,21 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
     </svg>
   ),
+  moreVertical: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+    </svg>
+  ),
 }
 
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-')
   return `${day}/${month}/${year}`
+}
+
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function NotesPreview({ lines }: { lines: SongLine[] }) {
@@ -156,7 +167,7 @@ function EditItemModal({ item, onClose, onSave }: EditItemModalProps) {
           <h2 className="text-lg font-semibold text-neutral-100">Editar no Setlist</h2>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
+            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
           >
             {Icons.close}
           </button>
@@ -170,12 +181,12 @@ function EditItemModal({ item, onClose, onSave }: EditItemModalProps) {
             </div>
             <div className="flex gap-1 flex-shrink-0">
               {item.song.bpm && (
-                <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                  {item.song.bpm}
+                <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
+                  {item.song.bpm}bpm
                 </span>
               )}
               {item.song.originalKey && (
-                <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+                <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
                   {item.song.originalKey}
                 </span>
               )}
@@ -229,14 +240,14 @@ Intro suave"
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-sm uppercase tracking-wide cursor-pointer"
+              className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-full text-sm cursor-pointer"
             >
               Cancelar
             </button>
             <button
               onClick={handleSubmit}
               disabled={!key.trim()}
-              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-lg text-sm uppercase tracking-wide cursor-pointer disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full text-sm cursor-pointer disabled:cursor-not-allowed"
             >
               Salvar
             </button>
@@ -256,6 +267,9 @@ interface SortableSongItemProps {
 }
 
 function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: SortableSongItemProps) {
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
   const {
     attributes,
     listeners,
@@ -270,20 +284,32 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
     transition,
   }
 
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    if (!showMenu) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showMenu])
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 py-4 hover:bg-neutral-800 -mx-4 px-4 rounded-lg transition-colors ${
+      className={`flex items-center gap-2 py-3 hover:bg-neutral-800 -mx-4 px-4 rounded-lg transition-colors ${
         isDragging ? 'opacity-50 bg-neutral-800 z-10' : ''
       }`}
     >
-      <span className="text-neutral-500 w-6 text-center">{index + 1}</span>
+      <span className="text-neutral-500 w-6 text-center flex-shrink-0">{index + 1}</span>
 
       <button
         {...attributes}
         {...listeners}
-        className="p-2 text-neutral-400 hover:text-white cursor-grab active:cursor-grabbing touch-none"
+        className="p-2 text-neutral-400 hover:text-white cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
         title="Arrastar para reordenar"
       >
         {Icons.dragHandle}
@@ -291,47 +317,57 @@ function SortableSongItem({ item, index, onViewSong, onEdit, onRemove }: Sortabl
 
       <button
         onClick={onViewSong}
-        className="flex-1 text-left ml-2 cursor-pointer"
+        className="flex-1 text-left ml-1 cursor-pointer min-w-0"
       >
-        <div className="font-medium">{item.song.title}</div>
-        <div className="text-sm text-neutral-400">{item.song.artist}</div>
+        <div className="font-medium truncate">{item.song.title}</div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-neutral-400">{item.song.artist}</span>
+          <div className="flex gap-1 ml-auto">
+            <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
+              {item.key}
+            </span>
+            {item.bpm && (
+              <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
+                {item.bpm}
+              </span>
+            )}
+            {item.notes && (
+              <span className="px-1.5 py-0.5 bg-emerald-900/50 text-emerald-400 rounded-full text-xs">
+                N
+              </span>
+            )}
+          </div>
+        </div>
       </button>
 
-      <div className="flex gap-1 flex-shrink-0">
-        {item.notes ? (
-          <span className="px-2 py-1 bg-emerald-900/50 text-emerald-400 rounded text-sm font-mono">
-            Notas
-          </span>
-        ) : (
-          <span className="px-2 py-1 bg-neutral-800 text-neutral-400 rounded text-sm font-mono">
-            Notas
-          </span>
+      {/* Menu de 3 pontinhos */}
+      <div className="relative flex-shrink-0" ref={menuRef}>
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          className="p-2 text-neutral-400 hover:text-white cursor-pointer rounded-full hover:bg-neutral-700"
+          title="Opcoes"
+        >
+          {Icons.moreVertical}
+        </button>
+        {showMenu && (
+          <div className="absolute right-0 top-full mt-1 bg-neutral-800 rounded-lg shadow-lg py-1 min-w-[140px] z-50 border border-neutral-700">
+            <button
+              onClick={() => { setShowMenu(false); onEdit() }}
+              className="w-full px-3 py-2 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-2"
+            >
+              {Icons.editSmall}
+              Editar
+            </button>
+            <button
+              onClick={() => { setShowMenu(false); onRemove() }}
+              className="w-full px-3 py-2 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-2 text-red-400"
+            >
+              {Icons.remove}
+              Remover
+            </button>
+          </div>
         )}
-        {item.bpm && (
-          <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-            {item.bpm}
-          </span>
-        )}
-        <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
-          {item.key}
-        </span>
       </div>
-
-      <button
-        onClick={onEdit}
-        className="p-2 text-neutral-400 hover:text-white cursor-pointer"
-        title="Editar"
-      >
-        {Icons.editSmall}
-      </button>
-
-      <button
-        onClick={onRemove}
-        className="p-2 text-neutral-400 hover:text-red-400 cursor-pointer"
-        title="Remover"
-      >
-        {Icons.remove}
-      </button>
     </div>
   )
 }
@@ -520,31 +556,20 @@ export function SetlistViewer({
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
-      createdBy={setlist.createdBy}
+      onEdit={onEdit}
+      actions={
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer"
+        >
+          {Icons.addToList}
+          <span className="hidden sm:inline">Adicionar</span>
+        </button>
+      }
     >
-      <div className="h-screen flex flex-col overflow-hidden">
-        {/* Header com botoes */}
-        <div className="px-6 py-3 border-b border-neutral-800">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <button
-              onClick={onEdit}
-              className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
-              title="Editar"
-            >
-              {Icons.edit}
-            </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg flex items-center gap-2 transition-colors text-sm uppercase tracking-wide cursor-pointer"
-            >
-              {Icons.addToList}
-              Adicionar Musica
-            </button>
-          </div>
-        </div>
-
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             {setlist.songs.length === 0 ? (
               <div className="py-8 text-center text-neutral-500">
                 Nenhuma musica no setlist. Clique em + para adicionar.
@@ -574,6 +599,17 @@ export function SetlistViewer({
                 </SortableContext>
               </DndContext>
             )}
+
+            {/* Rodapé com data e autor */}
+            <div className="mt-8 pt-4 border-t border-neutral-800 flex items-center gap-2 text-sm text-neutral-500">
+              <span>Criado em {formatTimestamp(setlist.createdAt)}</span>
+              {setlist.createdBy && (
+                <>
+                  <span>por</span>
+                  <AuthorBadge userId={setlist.createdBy} size="md" />
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

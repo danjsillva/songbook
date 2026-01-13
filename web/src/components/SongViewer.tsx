@@ -6,7 +6,14 @@ import { Layout } from './Layout'
 import { FloatingControls } from './FloatingControls'
 import { NotesSidebar } from './NotesSidebar'
 import { SectionMinimap } from './SectionMinimap'
+import { AuthorBadge } from './AuthorBadge'
 import { api } from '../api/client'
+import { useMobileControls } from '../contexts/MobileControlsContext'
+
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
 
 interface SetlistSongInfo {
   songId: string
@@ -124,6 +131,7 @@ export function SongViewer({
   const [localNotes, setLocalNotes] = useState(notes || '')
   const [notesMinimized, setNotesMinimized] = useState(!notes?.trim())
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
+  const { isMinimized: isMobileControlsMinimized, toggle: toggleMobileControls } = useMobileControls()
   const contentRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
   const isNavigatingRef = useRef(false)
@@ -355,12 +363,11 @@ export function SongViewer({
       setlistNav={setlistNav}
       bpm={bpmOverride || song.bpm}
       originalKey={song.originalKey}
-      createdBy={song.createdBy}
     >
-      {/* FloatingControls - fixed relativo ao viewport */}
+      {/* FloatingControls Desktop - hidden on mobile */}
       <div
-        className="fixed z-40 left-1/2 flex justify-end pr-5"
-        style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-28rem - 8rem)', width: '8rem' }}
+        className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
+        style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-32rem - 16rem)', width: '12rem' }}
       >
         <FloatingControls
           currentKey={currentKey}
@@ -373,11 +380,11 @@ export function SongViewer({
         />
       </div>
 
-      {/* Section Minimap - fixed relativo ao viewport */}
+      {/* Section Minimap Desktop - hidden on mobile */}
       {sectionIndices.length > 0 && (
         <div
-          className="fixed z-40 left-1/2 flex justify-start pl-5"
-          style={{ top: 'calc(3rem + 3rem)', marginLeft: '28rem', width: '8rem' }}
+          className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"
+          style={{ top: 'calc(3rem + 3rem)', marginLeft: 'calc(-32rem - 6rem)', width: '4rem' }}
         >
           <SectionMinimap
             content={song.content}
@@ -387,6 +394,21 @@ export function SongViewer({
         </div>
       )}
 
+      {/* FloatingControls Mobile - visible only on mobile */}
+      <div className="lg:hidden fixed z-40 bottom-4 left-4">
+        <FloatingControls
+          currentKey={currentKey}
+          onTransposeDown={() => setTranspose(t => t - 1)}
+          onTransposeUp={() => setTranspose(t => t + 1)}
+          onKeySelect={handleSelectKey}
+          onFontDecrease={() => setFontSize(s => Math.max(12, s - 2))}
+          onFontIncrease={() => setFontSize(s => Math.min(32, s + 2))}
+          youtubeUrl={song.youtubeUrl || undefined}
+          isMinimized={isMobileControlsMinimized}
+          onToggleMinimized={toggleMobileControls}
+        />
+      </div>
+
       {/* Conteudo scrollável */}
       <div
         ref={contentRef}
@@ -394,7 +416,7 @@ export function SongViewer({
         className="flex-1 p-6 overflow-auto outline-none"
         style={{ fontSize: `${fontSize}px` }}
       >
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="font-mono space-y-1">
             {song.content.map((line, i) => (
               <ChordLine
@@ -407,17 +429,46 @@ export function SongViewer({
               />
             ))}
           </div>
+
+          {/* Rodapé com data e autor */}
+          <div className="mt-12 pt-4 border-t border-neutral-800 flex items-center gap-2 text-sm text-neutral-500">
+            <span>Criado em {formatDate(song.createdAt)}</span>
+            {song.createdBy && (
+              <>
+                <span>por</span>
+                <AuthorBadge userId={song.createdBy} size="md" />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Sidebar de notas (quando vem de um setlist) */}
+      {/* Painel flutuante de notas - Desktop (quando vem de um setlist) */}
       {setlistItemId && (
-        <NotesSidebar
-          notes={localNotes}
-          onSave={handleSaveNotes}
-          minimized={notesMinimized}
-          onToggleMinimized={() => setNotesMinimized(m => !m)}
-        />
+        <div
+          className="hidden lg:block fixed z-40"
+          style={{ top: '6rem', right: '3rem' }}
+        >
+          <NotesSidebar
+            notes={localNotes}
+            onSave={handleSaveNotes}
+            minimized={notesMinimized}
+            onToggleMinimized={() => setNotesMinimized(m => !m)}
+          />
+        </div>
+      )}
+
+      {/* Painel flutuante de notas - Mobile (quando vem de um setlist) */}
+      {setlistItemId && (
+        <div className="lg:hidden fixed z-40 bottom-4 right-4">
+          <NotesSidebar
+            notes={localNotes}
+            onSave={handleSaveNotes}
+            minimized={notesMinimized}
+            onToggleMinimized={() => setNotesMinimized(m => !m)}
+            position="bottom-right"
+          />
+        </div>
       )}
     </Layout>
   )

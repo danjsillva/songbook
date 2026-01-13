@@ -67,7 +67,7 @@ export function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="max-w-5xl mx-auto space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Músicas Recentes */}
               <div>
@@ -90,12 +90,12 @@ export function Dashboard() {
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {song.bpm && (
-                            <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                              {song.bpm}
+                            <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
+                              {song.bpm}bpm
                             </span>
                           )}
                           {song.originalKey && (
-                            <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+                            <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
                               {song.originalKey}
                             </span>
                           )}
@@ -125,7 +125,7 @@ export function Dashboard() {
                           <div className="font-medium truncate">{setlist.name}</div>
                           <div className="text-sm text-neutral-400">{formatDate(setlist.date)}</div>
                         </div>
-                        <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono flex-shrink-0">
+                        <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono flex-shrink-0">
                           {setlist.songCount}
                         </span>
                       </Link>

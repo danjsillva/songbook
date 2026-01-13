@@ -225,7 +225,7 @@ export function SearchModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
+            className="p-2 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
           >
             {Icons.close}
           </button>
@@ -241,12 +241,12 @@ export function SearchModal({
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 {selectedSong.bpm && (
-                  <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                    {selectedSong.bpm}
+                  <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
+                    {selectedSong.bpm}bpm
                   </span>
                 )}
                 {selectedSong.originalKey && (
-                  <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+                  <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
                     {selectedSong.originalKey}
                   </span>
                 )}
@@ -300,14 +300,14 @@ Intro suave"
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedSong(null)}
-                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-sm uppercase tracking-wide cursor-pointer"
+                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-full text-sm cursor-pointer"
               >
                 Voltar
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={!key.trim()}
-                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-lg text-sm uppercase tracking-wide cursor-pointer disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full text-sm cursor-pointer disabled:cursor-not-allowed"
               >
                 Adicionar
               </button>
@@ -353,12 +353,12 @@ Intro suave"
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {song.bpm && (
-                            <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono">
-                              {song.bpm}
+                            <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono">
+                              {song.bpm}bpm
                             </span>
                           )}
                           {song.originalKey && (
-                            <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono">
+                            <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono">
                               {song.originalKey}
                             </span>
                           )}
@@ -382,7 +382,7 @@ Intro suave"
                           <div className="font-medium truncate text-neutral-100">{setlist.name}</div>
                           <div className="text-sm text-neutral-400">{formatDate(setlist.date)}</div>
                         </div>
-                        <span className="px-2 py-1 bg-neutral-700 text-neutral-300 rounded text-sm font-mono flex-shrink-0">
+                        <span className="px-2.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-sm font-mono flex-shrink-0">
                           {setlist.songCount}
                         </span>
                       </button>

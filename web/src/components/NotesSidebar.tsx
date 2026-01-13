@@ -7,12 +7,13 @@ interface NotesSidebarProps {
   onSave?: (notes: string) => void
   minimized?: boolean
   onToggleMinimized?: () => void
+  position?: 'top-right' | 'bottom-right'
 }
 
 const Icons = {
-  minimize: (
+  close: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
   expand: (
@@ -30,7 +31,7 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
-  close: (
+  cancel: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
@@ -71,7 +72,7 @@ function ChordLine({ line }: { line: SongLine }) {
   )
 }
 
-export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized }: NotesSidebarProps) {
+export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized, position = 'top-right' }: NotesSidebarProps) {
   // Estado interno de minimizado (usado se não for controlado externamente)
   const [internalMinimized, setInternalMinimized] = useState(!notes.trim())
   const [isEditing, setIsEditing] = useState(false)
@@ -82,6 +83,7 @@ export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized }: No
   // Usa estado externo se fornecido, senão usa interno
   const isMinimized = minimized !== undefined ? minimized : internalMinimized
   const toggleMinimized = onToggleMinimized || (() => setInternalMinimized(m => !m))
+
 
   // Atualizar quando notes muda (nova musica)
   useEffect(() => {
@@ -129,29 +131,23 @@ export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized }: No
     setHasChanges(value !== notes)
   }
 
-  // Minimizado: apenas um botao flutuante
-  if (isMinimized) {
-    return (
-      <button
-        onClick={toggleMinimized}
-        className="fixed right-4 top-20 z-40 w-12 h-12 bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg transition-colors"
-        title="Expandir notas (n)"
-      >
-        {Icons.expand}
-      </button>
-    )
-  }
+  const isBottom = position === 'bottom-right'
 
-  return (
-    <aside className="fixed right-0 top-0 h-screen w-80 bg-neutral-900 border-l border-neutral-800 z-40 flex flex-col shadow-xl">
-      {/* Header */}
-      <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-100">Notas</h2>
-        <div className="flex items-center gap-1">
+  const panelContent = (
+    <div
+      className={`w-72 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl flex flex-col overflow-hidden ${
+        isBottom ? 'absolute bottom-full right-0 mb-3' : 'mt-3'
+      }`}
+      style={{ maxHeight: isBottom ? 'calc(100vh - 12rem)' : 'calc(100vh - 9rem)' }}
+    >
+      {/* Toolbar - sempre no topo */}
+      <div className="px-3 py-2 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
+        <span className="text-sm font-medium text-neutral-300">Notas</span>
+        <div className="flex items-center gap-0.5">
           {onSave && !isEditing && (
             <button
               onClick={handleEdit}
-              className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
+              className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
               title="Editar"
             >
               {Icons.edit}
@@ -161,52 +157,42 @@ export function NotesSidebar({ notes, onSave, minimized, onToggleMinimized }: No
             <>
               <button
                 onClick={handleCancel}
-                className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
+                className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 cursor-pointer"
                 title="Cancelar"
               >
-                {Icons.close}
+                {Icons.cancel}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!hasChanges}
-                className="p-2 text-amber-400 hover:text-amber-300 disabled:text-neutral-500 disabled:opacity-50 rounded-lg hover:bg-neutral-800 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+                className="p-1.5 text-amber-400 hover:text-amber-300 disabled:text-neutral-500 disabled:opacity-50 rounded-full hover:bg-neutral-800 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
                 title="Salvar"
               >
                 {Icons.save}
               </button>
             </>
           )}
-          <button
-            onClick={toggleMinimized}
-            className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 cursor-pointer"
-            title="Minimizar (n)"
-          >
-            {Icons.minimize}
-          </button>
         </div>
       </div>
 
       {/* Conteudo */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className={`flex-1 overflow-auto p-3 min-h-0 ${isEditing ? 'min-h-64' : ''}`}>
         {isEditing ? (
           <textarea
             ref={textareaRef}
             value={editedNotes}
             onChange={(e) => handleChange(e.target.value)}
-            className="w-full h-full bg-neutral-800 border border-neutral-700 rounded-lg p-3 text-sm font-mono resize-none focus:outline-none focus:border-neutral-600"
+            className="w-full h-full min-h-56 bg-neutral-800 border border-neutral-700 rounded-lg p-2 text-sm font-mono resize-none focus:outline-none focus:border-neutral-600"
             placeholder="Adicione suas notas aqui...
 
 Exemplo:
 G  D  Em  C
-Intro com fingerstyle
-
-Verso: tocar mais suave
-Refrao: aumentar dinamica"
+Intro com fingerstyle"
           />
         ) : (
           <div className="font-mono space-y-0.5">
             {parsedLines.length === 0 ? (
-              <div className="text-neutral-400 text-sm">
+              <div className="text-neutral-500 text-sm">
                 {onSave ? 'Clique em editar para adicionar notas' : 'Sem notas'}
               </div>
             ) : (
@@ -220,10 +206,42 @@ Refrao: aumentar dinamica"
 
       {/* Status de alteracoes */}
       {hasChanges && !isEditing && (
-        <div className="px-4 py-2 bg-amber-900/20 border-t border-amber-900/30 text-amber-200 text-xs">
+        <div className="px-3 py-1.5 bg-amber-900/20 border-t border-amber-900/30 text-amber-200 text-xs flex-shrink-0">
           Alteracoes nao salvas
         </div>
       )}
-    </aside>
+    </div>
+  )
+
+  const toggleButton = (
+    <button
+      onClick={toggleMinimized}
+      className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors cursor-pointer ${
+        isMinimized
+          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+          : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-300'
+      }`}
+      title={isMinimized ? "Expandir notas (n)" : "Fechar notas (n)"}
+    >
+      {isMinimized ? Icons.expand : Icons.close}
+    </button>
+  )
+
+  // Mobile (bottom-right): botão embaixo, popup acima
+  if (isBottom) {
+    return (
+      <div className="relative">
+        {!isMinimized && panelContent}
+        {toggleButton}
+      </div>
+    )
+  }
+
+  // Desktop (top-right): botão em cima, popup abaixo
+  return (
+    <div className="flex flex-col items-end">
+      {toggleButton}
+      {!isMinimized && panelContent}
+    </div>
   )
 }

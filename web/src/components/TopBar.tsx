@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'wouter'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useAuth } from '../contexts/AuthContext'
-import { AuthorBadge } from './AuthorBadge'
 
 const Icons = {
   search: (
@@ -45,6 +44,16 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
+  menu: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  ),
+  logout: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    </svg>
+  ),
 }
 
 interface SetlistNavProps {
@@ -66,7 +75,7 @@ interface TopBarProps {
   setlistNav?: SetlistNavProps
   bpm?: number | null
   originalKey?: string | null
-  createdBy?: string | null
+  actions?: React.ReactNode
 }
 
 export function TopBar({
@@ -79,12 +88,14 @@ export function TopBar({
   setlistNav,
   bpm,
   originalKey,
-  createdBy,
+  actions,
 }: TopBarProps) {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const addMenuRef = useClickOutside<HTMLDivElement>(() => setShowAddMenu(false), showAddMenu)
   const userMenuRef = useClickOutside<HTMLDivElement>(() => setShowUserMenu(false), showUserMenu)
+  const mobileMenuRef = useClickOutside<HTMLDivElement>(() => setShowMobileMenu(false), showMobileMenu)
   const { user, loading, signIn, signOut } = useAuth()
 
   return (
@@ -93,7 +104,7 @@ export function TopBar({
       <div className="absolute left-4">
         <Link
           href="/"
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
           title="Inicio"
         >
           <svg className="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
@@ -103,16 +114,16 @@ export function TopBar({
       </div>
 
       {/* Container centralizado - alinhado com conteudo principal */}
-      <div className="w-full px-6">
-        <div className="max-w-4xl mx-auto flex items-center min-w-0">
-          {/* Navegacao Setlist - alinhada a direita do seu espaco */}
-          <div className="w-32 -ml-32 flex justify-end pr-5 flex-shrink-0">
+      <div className="w-full px-14 sm:px-6">
+        <div className="max-w-5xl mx-auto flex items-center min-w-0">
+          {/* Navegacao Setlist - alinhada a direita do seu espaco (hidden on mobile) */}
+          <div className="hidden lg:flex w-32 -ml-32 justify-end pr-5 flex-shrink-0">
             {setlistNav && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={setlistNav.onPrev}
                   disabled={!setlistNav.canGoPrev}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   title="Musica anterior"
                 >
                   {Icons.arrowLeft}
@@ -123,7 +134,7 @@ export function TopBar({
                 <button
                   onClick={setlistNav.onNext}
                   disabled={!setlistNav.canGoNext}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   title="Proxima musica"
                 >
                   {Icons.arrowRight}
@@ -131,51 +142,79 @@ export function TopBar({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-xl font-semibold text-neutral-100 truncate">
-              {title}
-            </h1>
-            {subtitle && (
-              <span className="text-base text-neutral-500 truncate hidden sm:block">
-                {subtitle}
-              </span>
-            )}
-            {createdBy && <AuthorBadge userId={createdBy} />}
-          </div>
-          {onEdit && (
-            <button
-              onClick={onEdit}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
-              title="Editar"
-            >
-              {Icons.edit}
-            </button>
-          )}
-          {/* Badges */}
-          {(bpm || originalKey) && (
-            <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-              {bpm && (
-                <span className="px-2 py-1 bg-neutral-800 text-neutral-300 rounded text-sm font-mono">
-                  {bpm}bpm
+          <div className="flex flex-col min-w-0 flex-1">
+            {/* Linha 1: Titulo + subtitulo (desktop) + edit */}
+            <div className="flex items-baseline gap-3 min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold text-neutral-100 truncate">
+                {title}
+              </h1>
+              {subtitle && (
+                <span className="text-base text-neutral-500 truncate hidden sm:block">
+                  {subtitle}
                 </span>
               )}
-              {originalKey && (
-                <span className="px-2 py-1 bg-amber-900/50 text-amber-400 rounded text-sm font-mono font-bold">
-                  {originalKey}
-                </span>
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+                  title="Editar"
+                >
+                  {Icons.edit}
+                </button>
+              )}
+              {/* Badges - desktop */}
+              {(bpm || originalKey) && (
+                <div className="hidden sm:flex items-center gap-2 ml-auto flex-shrink-0">
+                  {bpm && (
+                    <span className="px-2.5 py-0.5 bg-neutral-800 text-neutral-300 rounded-full text-sm font-mono">
+                      {bpm}bpm
+                    </span>
+                  )}
+                  {originalKey && (
+                    <span className="px-2.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-sm font-mono font-bold">
+                      {originalKey}
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Actions customizadas - desktop */}
+              {actions && (
+                <div className={`hidden sm:flex items-center gap-2 flex-shrink-0 ${!(bpm || originalKey) ? 'ml-auto' : ''}`}>
+                  {actions}
+                </div>
               )}
             </div>
-          )}
+            {/* Linha 2: Subtitulo + badges (mobile) */}
+            {(subtitle || bpm || originalKey) && (
+              <div className="flex items-center gap-1 sm:hidden">
+                {subtitle && (
+                  <span className="text-xs text-neutral-500 truncate">{subtitle}</span>
+                )}
+                <div className="flex gap-1 ml-auto flex-shrink-0">
+                  {originalKey && (
+                    <span className="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded-full text-xs font-mono">
+                      {originalKey}
+                    </span>
+                  )}
+                  {bpm && (
+                    <span className="px-1.5 py-0.5 bg-neutral-700 text-neutral-300 rounded-full text-xs font-mono">
+                      {bpm}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Acoes - posicao fixa direita */}
-      <div className="absolute right-4 flex items-center gap-1">
+      {/* Acoes Desktop - posicao fixa direita */}
+      <div className="absolute right-4 hidden sm:flex items-center gap-1">
         {/* Botao Adicionar */}
         <div className="relative" ref={addMenuRef}>
           <button
             onClick={() => setShowAddMenu(!showAddMenu)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-amber-500 hover:text-amber-400 transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-800 text-amber-500 hover:text-amber-400 transition-colors cursor-pointer"
             title="Adicionar"
           >
             {Icons.add}
@@ -203,7 +242,7 @@ export function TopBar({
         {/* Botao Buscar */}
         <button
           onClick={onSearch}
-          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
           title="Buscar (/)"
         >
           {Icons.search}
@@ -219,7 +258,7 @@ export function TopBar({
             <>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer overflow-hidden"
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-800 transition-colors cursor-pointer overflow-hidden"
                 title={user.displayName || 'Perfil'}
               >
                 {user.photoURL ? (
@@ -252,13 +291,84 @@ export function TopBar({
           ) : (
             <button
               onClick={signIn}
-              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
               title="Entrar com Google"
             >
               {Icons.user}
             </button>
           )}
         </div>
+      </div>
+
+      {/* Menu Mobile - posicao fixa direita */}
+      <div className="absolute right-4 sm:hidden" ref={mobileMenuRef}>
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          title="Menu"
+        >
+          {Icons.menu}
+        </button>
+        {showMobileMenu && (
+          <div className="absolute right-0 top-full mt-1 bg-neutral-800 rounded-xl shadow-lg py-2 min-w-[200px] z-50 border border-neutral-700">
+            <button
+              onClick={() => { setShowMobileMenu(false); onSearch() }}
+              className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-3"
+            >
+              {Icons.search}
+              Buscar
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); onAddSong() }}
+              className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-3"
+            >
+              {Icons.music}
+              Nova Musica
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); onAddSetlist() }}
+              className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-3"
+            >
+              {Icons.setlist}
+              Novo Setlist
+            </button>
+            <div className="border-t border-neutral-700 my-1" />
+            {loading ? (
+              <div className="px-4 py-2.5 flex items-center gap-3 text-sm text-neutral-400">
+                <div className="w-5 h-5 border-2 border-neutral-600 border-t-neutral-400 rounded-full animate-spin" />
+                Carregando...
+              </div>
+            ) : user ? (
+              <>
+                <div className="px-4 py-2 flex items-center gap-3">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white text-xs font-medium">
+                      {user.displayName?.[0] || user.email?.[0] || '?'}
+                    </div>
+                  )}
+                  <span className="text-sm text-neutral-300 truncate">{user.displayName || user.email}</span>
+                </div>
+                <button
+                  onClick={() => { setShowMobileMenu(false); signOut() }}
+                  className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-3 text-red-400"
+                >
+                  {Icons.logout}
+                  Sair
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setShowMobileMenu(false); signIn() }}
+                className="w-full px-4 py-2.5 text-left hover:bg-neutral-700 text-sm cursor-pointer flex items-center gap-3"
+              >
+                {Icons.user}
+                Entrar com Google
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   )

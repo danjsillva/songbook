@@ -130,44 +130,40 @@ export function SetlistForm({
       onSearch={onSearch}
       onAddSong={onAddSong}
       onAddSetlist={onAddSetlist}
-    >
-      <div className="h-screen flex flex-col overflow-hidden">
-        {/* Header com acoes */}
-        <div className="px-6 py-3 border-b border-neutral-800">
-          <div className="max-w-4xl mx-auto flex items-center justify-end">
-            <div className="flex items-center gap-2">
-              {isEditing && onDelete && (
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="px-4 py-2 bg-red-900 hover:bg-red-800 disabled:opacity-50 rounded-lg flex items-center gap-2 transition-colors text-sm uppercase tracking-wide cursor-pointer disabled:cursor-not-allowed"
-                >
-                  {deleting ? (
-                    <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    Icons.delete
-                  )}
-                  Excluir
-                </button>
+      actions={
+        <>
+          {isEditing && onDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-3 py-1.5 bg-red-900 hover:bg-red-800 disabled:opacity-50 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
+            >
+              {deleting ? (
+                <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
+              ) : (
+                Icons.delete
               )}
-              <button
-                onClick={handleSave}
-                disabled={!canSave || saving}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-lg flex items-center gap-2 transition-colors text-sm uppercase tracking-wide cursor-pointer disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
-                ) : (
-                  Icons.save
-                )}
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-
+              <span className="hidden sm:inline">Excluir</span>
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-neutral-700 disabled:text-neutral-500 rounded-full flex items-center gap-2 transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
+          >
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin" />
+            ) : (
+              Icons.save
+            )}
+            <span className="hidden sm:inline">Salvar</span>
+          </button>
+        </>
+      }
+    >
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <div className="max-w-md space-y-4">
               {error && (
                 <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
