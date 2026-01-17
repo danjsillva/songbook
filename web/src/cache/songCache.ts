@@ -40,19 +40,21 @@ export const songCache = {
     listeners.forEach(listener => listener(id, song))
   },
 
-  // Prefetch para setlist - limpa cache anterior (1 setlist por vez)
+  // Prefetch para setlist - carrega músicas que ainda não estão no cache
   async prefetchSetlist(ids: string[]): Promise<void> {
-    // Limpa cache anterior - mantém memória controlada
-    cache.clear()
+    // Filtra apenas as que não estão no cache
+    const missingIds = ids.filter(id => !cache.has(id))
 
-    // Carrega todas em paralelo
+    if (missingIds.length === 0) return
+
+    // Carrega apenas as que faltam em paralelo
     const results = await Promise.allSettled(
-      ids.map(id => api.songs.get(id))
+      missingIds.map(id => api.songs.get(id))
     )
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
-        cache.set(ids[index], result.value)
+        cache.set(missingIds[index], result.value)
       }
     })
   },

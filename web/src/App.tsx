@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { api } from './api/client'
 import { useSong } from './hooks/useSong'
 import { useSetlist } from './hooks/useSetlist'
+import { songCache } from './cache/songCache'
 import { useAuth } from './contexts/AuthContext'
 import { useWorkspace } from './contexts/WorkspaceContext'
 import { Dashboard } from './components/Dashboard'
@@ -330,6 +331,14 @@ function ViewSetlistSongPage({ navCallbacks, renderModals }: PageProps) {
   // Encontrar a música na posição
   const setlistSong = setlist?.songs[positionNum]
   const { song, loading: loadingSong } = useSong(setlistSong?.songId || null)
+
+  // Prefetch todas as músicas do setlist quando carrega
+  useEffect(() => {
+    if (setlist && setlist.songs.length > 0) {
+      const songIds = setlist.songs.map(s => s.songId)
+      songCache.prefetchSetlist(songIds)
+    }
+  }, [setlist])
 
   useEffect(() => {
     if (setlistSong?.songId) {
