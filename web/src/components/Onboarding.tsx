@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Building2, Mail, Loader2, ArrowRight } from 'lucide-react'
 import { api } from '../api/client'
 import { useWorkspace } from '../contexts/WorkspaceContext'
-import type { Workspace } from '@songbook/shared'
 
 type Step = 'choice' | 'create' | 'join'
 
