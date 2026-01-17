@@ -4,16 +4,52 @@ export interface ChordPosition {
   position: number // Índice do caractere na linha de letra
 }
 
-// Gera cor hex consistente baseada no nome do marcador
+// Remove acentos e normaliza texto para comparação
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
+    .replace(/[-\s]+/g, '') // Remove hífens e espaços
+}
+
+// Retorna cor hex baseada no tipo de seção (cores neon)
 export function getSectionColor(section: string): string {
-  let hash = 0
-  for (let i = 0; i < section.length; i++) {
-    hash = section.charCodeAt(i) + ((hash << 5) - hash)
+  const s = normalizeText(section)
+
+  // Intro, Introdução → Laranja neon
+  if (s.includes('intro') || s.includes('introducao')) {
+    return '#FF6B00'
   }
 
-  // Gera HSL com saturação e luminosidade fixas para cores vibrantes
-  const hue = Math.abs(hash) % 360
-  return `hsl(${hue}, 70%, 55%)`
+  // Pré-refrão, Pre-chorus → Rosa bebê/rosé (verificar ANTES de refrão)
+  if (s.includes('prerefrao') || s.includes('prechorus')) {
+    return '#FFB6C1'
+  }
+
+  // Refrão, Chorus → Magenta neon
+  if (s.includes('refrao') || s.includes('chorus')) {
+    return '#FF00FF'
+  }
+
+  // Verso, Estrofe, Parte → Ciano neon
+  if (s.includes('verso') || s.includes('estrofe') || s.includes('parte') || s.includes('verse')) {
+    return '#00E5FF'
+  }
+
+  // Instrumental, Solo → Vermelho neon
+  if (s.includes('instrumental') || s.includes('solo')) {
+    return '#FF1744'
+  }
+
+  // Ponte, Bridge → Verde marca texto
+  if (s.includes('ponte') || s.includes('bridge')) {
+    return '#BFFF00'
+  }
+
+  // Resto → Branco
+  return '#FFFFFF'
 }
 
 // Linha do modelo canônico

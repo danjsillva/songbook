@@ -89,7 +89,7 @@ const ChordLine = React.forwardRef<HTMLDivElement, {
           className="inline-block px-3 py-1 rounded-lg text-xs uppercase tracking-wider font-medium mb-2"
           style={{
             color: sectionColor,
-            backgroundColor: sectionColor.replace('hsl(', 'hsla(').replace(')', ', 0.15)')
+            backgroundColor: `${sectionColor}26`
           }}
         >
           {line.section}
