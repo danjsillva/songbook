@@ -1,676 +1,15 @@
-import { nanoid } from 'nanoid'
-import { parseHtmlToSongLines, generatePlainText, detectKey } from './parser'
-import { extractSongFromUrl, classifySongSections } from './groq'
-import { verifyFirebaseToken, getTokenFromRequest } from './auth'
-import type {
-  Song, SongListItem, CreateSongInput, ExtractFromUrlInput,
-  Setlist, SetlistListItem, SetlistSong, CreateSetlistInput,
-  UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput,
-  User, SyncUserInput
-} from '@songbook/shared'
+import { corsHeaders, error } from './lib/response'
+import type { Env } from './lib/types'
 
-export interface Env {
-  DB: D1Database
-  GROQ_API_KEY: string
-  FIREBASE_PROJECT_ID: string
-}
+// Routes
+import * as songs from './routes/songs'
+import * as setlists from './routes/setlists'
+import * as users from './routes/users'
+import * as workspaces from './routes/workspaces'
+import * as extract from './routes/extract'
 
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
+export type { Env }
 
-// Auth helper - returns user ID or null if not authenticated
-async function requireAuth(request: Request, env: Env): Promise<string | Response> {
-  if (!env.FIREBASE_PROJECT_ID) {
-    // Auth not configured, allow all requests (dev mode)
-    return 'anonymous'
-  }
-
-  const token = getTokenFromRequest(request)
-  if (!token) {
-    return error('Authentication required', 401)
-  }
-
-  const payload = await verifyFirebaseToken(token, env.FIREBASE_PROJECT_ID)
-  if (!payload) {
-    return error('Invalid token', 401)
-  }
-
-  return payload.sub
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    },
-  })
-}
-
-function error(message: string, status = 400): Response {
-  return json({ error: message }, status)
-}
-
-// GET /api/songs/recent - 5 músicas mais recentes (por last_viewed_at)
-async function getRecentSongs(db: D1Database): Promise<Response> {
-  const result = await db
-    .prepare('SELECT id, title, artist, original_key, bpm, created_at, created_by FROM songs WHERE last_viewed_at IS NOT NULL ORDER BY last_viewed_at DESC LIMIT 5')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
-
-  const songs: SongListItem[] = result.results.map(row => ({
-    id: row.id,
-    title: row.title,
-    artist: row.artist,
-    originalKey: row.original_key,
-    bpm: row.bpm,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }))
-
-  return json(songs)
-}
-
-// PUT /api/songs/:id/view - Marca música como visualizada
-async function markSongViewed(db: D1Database, id: string): Promise<Response> {
-  const result = await db
-    .prepare('UPDATE songs SET last_viewed_at = ? WHERE id = ?')
-    .bind(Date.now(), id)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Song not found', 404)
-  }
-
-  return json({ success: true })
-}
-
-// GET /api/songs - Lista todas as músicas
-async function listSongs(db: D1Database): Promise<Response> {
-  const result = await db
-    .prepare('SELECT id, title, artist, original_key, bpm, created_at, created_by FROM songs ORDER BY created_at DESC')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
-
-  const songs: SongListItem[] = result.results.map(row => ({
-    id: row.id,
-    title: row.title,
-    artist: row.artist,
-    originalKey: row.original_key,
-    bpm: row.bpm,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }))
-
-  return json(songs)
-}
-
-// GET /api/songs/:id - Busca uma música
-async function getSong(db: D1Database, id: string): Promise<Response> {
-  const row = await db
-    .prepare('SELECT * FROM songs WHERE id = ?')
-    .bind(id)
-    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number; created_by: string | null }>()
-
-  if (!row) {
-    return error('Song not found', 404)
-  }
-
-  const song: Song = {
-    id: row.id,
-    title: row.title,
-    artist: row.artist,
-    originalKey: row.original_key,
-    bpm: row.bpm,
-    youtubeUrl: row.youtube_url,
-    content: JSON.parse(row.content),
-    plainText: row.plain_text,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }
-
-  return json(song)
-}
-
-// POST /api/songs - Cria uma música
-async function createSong(db: D1Database, input: CreateSongInput, userId: string): Promise<Response> {
-  const id = nanoid(10)
-  const content = parseHtmlToSongLines(input.html)
-  const plainText = generatePlainText(content)
-  const originalKey = input.originalKey || detectKey(content)
-  const bpm = input.bpm || null
-  const youtubeUrl = input.youtubeUrl || null
-  const createdAt = Date.now()
-  const createdBy = userId === 'anonymous' ? null : userId
-
-  await db
-    .prepare(
-      'INSERT INTO songs (id, title, artist, original_key, bpm, youtube_url, content, plain_text, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    .bind(id, input.title, input.artist, originalKey, bpm, youtubeUrl, JSON.stringify(content), plainText, createdAt, createdBy)
-    .run()
-
-  const song: Song = {
-    id,
-    title: input.title,
-    artist: input.artist,
-    originalKey,
-    bpm,
-    youtubeUrl,
-    content,
-    plainText,
-    createdAt,
-    createdBy,
-  }
-
-  return json(song, 201)
-}
-
-// PUT /api/songs/:id - Atualiza uma música
-async function updateSong(db: D1Database, id: string, input: CreateSongInput): Promise<Response> {
-  const content = parseHtmlToSongLines(input.html)
-  const plainText = generatePlainText(content)
-  const originalKey = input.originalKey || detectKey(content)
-  const bpm = input.bpm || null
-  const youtubeUrl = input.youtubeUrl || null
-
-  const result = await db
-    .prepare(
-      'UPDATE songs SET title = ?, artist = ?, original_key = ?, bpm = ?, youtube_url = ?, content = ?, plain_text = ? WHERE id = ?'
-    )
-    .bind(input.title, input.artist, originalKey, bpm, youtubeUrl, JSON.stringify(content), plainText, id)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Song not found', 404)
-  }
-
-  // Busca a música atualizada
-  return getSong(db, id)
-}
-
-// DELETE /api/songs/:id - Remove uma música
-async function deleteSong(db: D1Database, id: string): Promise<Response> {
-  const result = await db.prepare('DELETE FROM songs WHERE id = ?').bind(id).run()
-
-  if (result.meta.changes === 0) {
-    return error('Song not found', 404)
-  }
-
-  return json({ success: true })
-}
-
-// POST /api/songs/:id/classify - Classifica seções da música usando IA
-async function classifySong(db: D1Database, id: string, apiKey: string): Promise<Response> {
-  // Buscar música
-  const row = await db
-    .prepare('SELECT * FROM songs WHERE id = ?')
-    .bind(id)
-    .first<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; youtube_url: string | null; content: string; plain_text: string; created_at: number; created_by: string | null }>()
-
-  if (!row) {
-    return error('Song not found', 404)
-  }
-
-  // Gerar texto com acordes para classificação
-  const existingContent = JSON.parse(row.content) as Array<{ lyrics: string; chords: Array<{ chord: string; position: number }> }>
-
-  // Reconstruir o formato de cifra (acordes acima da letra)
-  let lyricsWithChords = ''
-  for (const line of existingContent) {
-    if (line.chords.length > 0) {
-      // Linha de acordes
-      let chordLine = ''
-      let lastPos = 0
-      for (const { chord, position } of line.chords) {
-        while (chordLine.length < position) {
-          chordLine += ' '
-        }
-        chordLine += chord
-      }
-      lyricsWithChords += chordLine + '\n'
-    }
-    lyricsWithChords += line.lyrics + '\n'
-  }
-
-  // Chamar Groq para classificar
-  const classifiedLyrics = await classifySongSections(lyricsWithChords, apiKey)
-
-  // Re-parsear o resultado
-  const newContent = parseHtmlToSongLines(classifiedLyrics)
-  const newPlainText = generatePlainText(newContent)
-
-  // Atualizar no banco
-  await db
-    .prepare('UPDATE songs SET content = ?, plain_text = ? WHERE id = ?')
-    .bind(JSON.stringify(newContent), newPlainText, id)
-    .run()
-
-  // Retornar música atualizada
-  const song: Song = {
-    id: row.id,
-    title: row.title,
-    artist: row.artist,
-    originalKey: row.original_key,
-    bpm: row.bpm,
-    youtubeUrl: row.youtube_url,
-    content: newContent,
-    plainText: newPlainText,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }
-
-  return json(song)
-}
-
-// GET /api/search?q= - Busca full-text
-async function searchSongs(db: D1Database, query: string): Promise<Response> {
-  if (!query.trim()) {
-    return json({ songs: [], query: '' })
-  }
-
-  // Busca usando FTS5
-  const result = await db
-    .prepare(`
-      SELECT s.id, s.title, s.artist, s.original_key, s.bpm, s.created_at, s.created_by
-      FROM songs s
-      JOIN songs_fts fts ON s.rowid = fts.rowid
-      WHERE songs_fts MATCH ?
-      ORDER BY rank
-      LIMIT 50
-    `)
-    .bind(query + '*')
-    .all<{ id: string; title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null }>()
-
-  const songs: SongListItem[] = result.results.map(row => ({
-    id: row.id,
-    title: row.title,
-    artist: row.artist,
-    originalKey: row.original_key,
-    bpm: row.bpm,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }))
-
-  return json({ songs, query })
-}
-
-// ============ SETLISTS ============
-
-// GET /api/setlists/recent - 5 setlists mais recentes (por last_viewed_at)
-async function getRecentSetlists(db: D1Database): Promise<Response> {
-  const result = await db
-    .prepare(`
-      SELECT s.id, s.name, s.date, s.created_at, s.created_by,
-        (SELECT COUNT(*) FROM setlist_songs WHERE setlist_id = s.id) as song_count
-      FROM setlists s
-      WHERE s.last_viewed_at IS NOT NULL
-      ORDER BY s.last_viewed_at DESC
-      LIMIT 5
-    `)
-    .all<{ id: string; name: string; date: string; created_at: number; created_by: string | null; song_count: number }>()
-
-  const setlists: SetlistListItem[] = result.results.map(row => ({
-    id: row.id,
-    name: row.name,
-    date: row.date,
-    songCount: row.song_count,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }))
-
-  return json(setlists)
-}
-
-// PUT /api/setlists/:id/view - Marca setlist como visualizado
-async function markSetlistViewed(db: D1Database, id: string): Promise<Response> {
-  const result = await db
-    .prepare('UPDATE setlists SET last_viewed_at = ? WHERE id = ?')
-    .bind(Date.now(), id)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Setlist not found', 404)
-  }
-
-  return json({ success: true })
-}
-
-// GET /api/setlists - Lista todos os setlists
-async function listSetlists(db: D1Database): Promise<Response> {
-  const result = await db
-    .prepare(`
-      SELECT s.id, s.name, s.date, s.created_at, s.created_by,
-        (SELECT COUNT(*) FROM setlist_songs WHERE setlist_id = s.id) as song_count
-      FROM setlists s
-      ORDER BY s.date DESC
-    `)
-    .all<{ id: string; name: string; date: string; created_at: number; created_by: string | null; song_count: number }>()
-
-  const setlists: SetlistListItem[] = result.results.map(row => ({
-    id: row.id,
-    name: row.name,
-    date: row.date,
-    songCount: row.song_count,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-  }))
-
-  return json(setlists)
-}
-
-// GET /api/setlists/:id - Busca setlist com músicas
-async function getSetlist(db: D1Database, id: string): Promise<Response> {
-  const setlistRow = await db
-    .prepare('SELECT * FROM setlists WHERE id = ?')
-    .bind(id)
-    .first<{ id: string; name: string; date: string; created_at: number; created_by: string | null }>()
-
-  if (!setlistRow) {
-    return error('Setlist not found', 404)
-  }
-
-  const songsResult = await db
-    .prepare(`
-      SELECT ss.id, ss.song_id, ss.position, ss.key, ss.bpm as setlist_bpm, ss.notes,
-        s.title, s.artist, s.original_key, s.bpm, s.created_at, s.created_by
-      FROM setlist_songs ss
-      JOIN songs s ON ss.song_id = s.id
-      WHERE ss.setlist_id = ?
-      ORDER BY ss.position
-    `)
-    .bind(id)
-    .all<{
-      id: string; song_id: string; position: number; key: string; setlist_bpm: number | null; notes: string | null;
-      title: string; artist: string; original_key: string | null; bpm: number | null; created_at: number; created_by: string | null
-    }>()
-
-  const songs: SetlistSong[] = songsResult.results.map(row => ({
-    id: row.id,
-    songId: row.song_id,
-    position: row.position,
-    key: row.key,
-    bpm: row.setlist_bpm,
-    notes: row.notes,
-    song: {
-      id: row.song_id,
-      title: row.title,
-      artist: row.artist,
-      originalKey: row.original_key,
-      bpm: row.bpm,
-      createdAt: row.created_at,
-      createdBy: row.created_by,
-    },
-  }))
-
-  const setlist: Setlist = {
-    id: setlistRow.id,
-    name: setlistRow.name,
-    date: setlistRow.date,
-    songs,
-    createdAt: setlistRow.created_at,
-    createdBy: setlistRow.created_by,
-  }
-
-  return json(setlist)
-}
-
-// POST /api/setlists - Cria setlist
-async function createSetlist(db: D1Database, input: CreateSetlistInput, userId: string): Promise<Response> {
-  const id = nanoid(10)
-  const createdAt = Date.now()
-  const createdBy = userId === 'anonymous' ? null : userId
-
-  await db
-    .prepare('INSERT INTO setlists (id, name, date, created_at, created_by) VALUES (?, ?, ?, ?, ?)')
-    .bind(id, input.name, input.date, createdAt, createdBy)
-    .run()
-
-  const setlist: Setlist = {
-    id,
-    name: input.name,
-    date: input.date,
-    songs: [],
-    createdAt,
-    createdBy,
-  }
-
-  return json(setlist, 201)
-}
-
-// PUT /api/setlists/:id - Atualiza setlist
-async function updateSetlist(db: D1Database, id: string, input: UpdateSetlistInput): Promise<Response> {
-  const updates: string[] = []
-  const values: (string | number)[] = []
-
-  if (input.name) {
-    updates.push('name = ?')
-    values.push(input.name)
-  }
-  if (input.date) {
-    updates.push('date = ?')
-    values.push(input.date)
-  }
-
-  if (updates.length === 0) {
-    return error('No fields to update')
-  }
-
-  values.push(id)
-  const result = await db
-    .prepare(`UPDATE setlists SET ${updates.join(', ')} WHERE id = ?`)
-    .bind(...values)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Setlist not found', 404)
-  }
-
-  return getSetlist(db, id)
-}
-
-// DELETE /api/setlists/:id - Remove setlist
-async function deleteSetlist(db: D1Database, id: string): Promise<Response> {
-  const result = await db.prepare('DELETE FROM setlists WHERE id = ?').bind(id).run()
-
-  if (result.meta.changes === 0) {
-    return error('Setlist not found', 404)
-  }
-
-  return json({ success: true })
-}
-
-// POST /api/setlists/:id/songs - Adiciona música ao setlist
-async function addSongToSetlist(db: D1Database, setlistId: string, input: AddSongToSetlistInput): Promise<Response> {
-  // Verificar se setlist existe
-  const setlist = await db.prepare('SELECT id FROM setlists WHERE id = ?').bind(setlistId).first()
-  if (!setlist) {
-    return error('Setlist not found', 404)
-  }
-
-  // Verificar se música existe
-  const song = await db.prepare('SELECT id FROM songs WHERE id = ?').bind(input.songId).first()
-  if (!song) {
-    return error('Song not found', 404)
-  }
-
-  // Pegar próxima posição
-  const lastPos = await db
-    .prepare('SELECT MAX(position) as max_pos FROM setlist_songs WHERE setlist_id = ?')
-    .bind(setlistId)
-    .first<{ max_pos: number | null }>()
-
-  const position = (lastPos?.max_pos ?? -1) + 1
-  const id = nanoid(10)
-
-  try {
-    await db
-      .prepare('INSERT INTO setlist_songs (id, setlist_id, song_id, position, key, bpm, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, setlistId, input.songId, position, input.key, input.bpm || null, input.notes || null)
-      .run()
-  } catch {
-    return error('Song already in setlist', 400)
-  }
-
-  return getSetlist(db, setlistId)
-}
-
-// DELETE /api/setlists/:id/items/:itemId - Remove item do setlist
-async function removeItemFromSetlist(db: D1Database, setlistId: string, itemId: string): Promise<Response> {
-  const result = await db
-    .prepare('DELETE FROM setlist_songs WHERE id = ? AND setlist_id = ?')
-    .bind(itemId, setlistId)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Item not in setlist', 404)
-  }
-
-  // Reordenar posições
-  await db
-    .prepare(`
-      UPDATE setlist_songs
-      SET position = (
-        SELECT COUNT(*) FROM setlist_songs ss2
-        WHERE ss2.setlist_id = setlist_songs.setlist_id
-        AND ss2.position < setlist_songs.position
-      )
-      WHERE setlist_id = ?
-    `)
-    .bind(setlistId)
-    .run()
-
-  return getSetlist(db, setlistId)
-}
-
-// PUT /api/setlists/:id/items/:itemId - Atualiza item do setlist
-async function updateSetlistItem(db: D1Database, setlistId: string, itemId: string, input: UpdateSetlistSongInput): Promise<Response> {
-  const updates: string[] = []
-  const values: (string | number | null)[] = []
-
-  if (input.key !== undefined) {
-    updates.push('key = ?')
-    values.push(input.key)
-  }
-  if (input.bpm !== undefined) {
-    updates.push('bpm = ?')
-    values.push(input.bpm)
-  }
-  if (input.notes !== undefined) {
-    updates.push('notes = ?')
-    values.push(input.notes)
-  }
-
-  if (updates.length === 0) {
-    return error('No fields to update')
-  }
-
-  values.push(itemId, setlistId)
-  const result = await db
-    .prepare(`UPDATE setlist_songs SET ${updates.join(', ')} WHERE id = ? AND setlist_id = ?`)
-    .bind(...values)
-    .run()
-
-  if (result.meta.changes === 0) {
-    return error('Item not found', 404)
-  }
-
-  return getSetlist(db, setlistId)
-}
-
-// PUT /api/setlists/:id/reorder - Reordena músicas
-async function reorderSetlist(db: D1Database, setlistId: string, input: ReorderSetlistInput): Promise<Response> {
-  // Atualizar posições usando o ID do item (não song_id)
-  for (let i = 0; i < input.itemIds.length; i++) {
-    await db
-      .prepare('UPDATE setlist_songs SET position = ? WHERE setlist_id = ? AND id = ?')
-      .bind(i, setlistId, input.itemIds[i])
-      .run()
-  }
-
-  return getSetlist(db, setlistId)
-}
-
-// ============ USERS ============
-
-// POST /api/users/sync - Sync user profile from Firebase Auth
-async function syncUser(db: D1Database, userId: string, input: SyncUserInput): Promise<Response> {
-  const now = Date.now()
-
-  // Check if user exists
-  const existing = await db
-    .prepare('SELECT id FROM users WHERE id = ?')
-    .bind(userId)
-    .first()
-
-  if (existing) {
-    // Update
-    await db
-      .prepare('UPDATE users SET name = ?, email = ?, photo_url = ?, updated_at = ? WHERE id = ?')
-      .bind(input.name || null, input.email || null, input.photoUrl || null, now, userId)
-      .run()
-  } else {
-    // Insert
-    await db
-      .prepare('INSERT INTO users (id, name, email, photo_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(userId, input.name || null, input.email || null, input.photoUrl || null, now, now)
-      .run()
-  }
-
-  return getUser(db, userId)
-}
-
-// GET /api/users/:id - Get user by ID
-async function getUser(db: D1Database, userId: string): Promise<Response> {
-  const row = await db
-    .prepare('SELECT * FROM users WHERE id = ?')
-    .bind(userId)
-    .first<{ id: string; name: string | null; email: string | null; photo_url: string | null; created_at: number; updated_at: number }>()
-
-  if (!row) {
-    return error('User not found', 404)
-  }
-
-  const user: User = {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    photoUrl: row.photo_url,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }
-
-  return json(user)
-}
-
-// GET /api/users?ids=id1,id2,id3 - Get multiple users
-async function getUsers(db: D1Database, ids: string[]): Promise<Response> {
-  if (ids.length === 0) {
-    return json([])
-  }
-
-  const placeholders = ids.map(() => '?').join(',')
-  const result = await db
-    .prepare(`SELECT * FROM users WHERE id IN (${placeholders})`)
-    .bind(...ids)
-    .all<{ id: string; name: string | null; email: string | null; photo_url: string | null; created_at: number; updated_at: number }>()
-
-  const users: User[] = result.results.map(row => ({
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    photoUrl: row.photo_url,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }))
-
-  return json(users)
-}
-
-// Router principal
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Handle CORS preflight
@@ -683,45 +22,75 @@ export default {
     const method = request.method
 
     try {
+      // ============ WORKSPACES ============
+
+      // POST /api/workspaces - Create workspace
+      if (path === '/api/workspaces' && method === 'POST') {
+        return workspaces.createWorkspace(request, env)
+      }
+
+      // GET /api/workspaces/:slug - Get workspace by slug
+      const workspaceSlugMatch = path.match(/^\/api\/workspaces\/([^/]+)$/)
+      if (workspaceSlugMatch && method === 'GET') {
+        return workspaces.getWorkspaceBySlug(env, workspaceSlugMatch[1])
+      }
+
+      // PUT /api/workspaces/:id - Update workspace
+      if (workspaceSlugMatch && method === 'PUT') {
+        return workspaces.updateWorkspace(request, env, workspaceSlugMatch[1])
+      }
+
+      // POST /api/workspaces/:id/invites - Create invite
+      const workspaceInvitesMatch = path.match(/^\/api\/workspaces\/([^/]+)\/invites$/)
+      if (workspaceInvitesMatch && method === 'POST') {
+        return workspaces.createInvite(request, env, workspaceInvitesMatch[1])
+      }
+
+      // GET /api/invites/:token - Get invite info
+      const inviteInfoMatch = path.match(/^\/api\/invites\/([^/]+)$/)
+      if (inviteInfoMatch && method === 'GET') {
+        return workspaces.getInviteInfo(env, inviteInfoMatch[1])
+      }
+
+      // POST /api/invites/:token/accept - Accept invite
+      const inviteAcceptMatch = path.match(/^\/api\/invites\/([^/]+)\/accept$/)
+      if (inviteAcceptMatch && method === 'POST') {
+        return workspaces.acceptInvite(request, env, inviteAcceptMatch[1])
+      }
+
+      // GET /api/me/workspace - Get current user's workspace
+      if (path === '/api/me/workspace' && method === 'GET') {
+        return workspaces.getMyWorkspace(request, env)
+      }
+
+      // ============ SONGS ============
+
       // GET /api/songs/recent
       if (path === '/api/songs/recent' && method === 'GET') {
-        return getRecentSongs(env.DB)
+        return songs.getRecentSongs(request, env)
       }
 
       // GET /api/songs
       if (path === '/api/songs' && method === 'GET') {
-        return listSongs(env.DB)
+        return songs.listSongs(request, env)
       }
 
-      // POST /api/songs (protected)
+      // POST /api/songs
       if (path === '/api/songs' && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<CreateSongInput>()
-        if (!input.title || !input.artist || !input.html) {
-          return error('Missing required fields: title, artist, html')
-        }
-        return createSong(env.DB, input, auth)
+        return songs.createSong(request, env)
       }
 
       // PUT /api/songs/:id/view
       const songViewMatch = path.match(/^\/api\/songs\/([^/]+)\/view$/)
       if (songViewMatch && method === 'PUT') {
-        return markSongViewed(env.DB, songViewMatch[1])
+        return songs.markSongViewed(request, env, songViewMatch[1])
       }
 
-      // POST /api/songs/:id/classify (protected)
+      // POST /api/songs/:id/classify
       const songClassifyMatch = path.match(/^\/api\/songs\/([^/]+)\/classify$/)
       if (songClassifyMatch && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        if (!env.GROQ_API_KEY) {
-          return error('GROQ_API_KEY not configured', 500)
-        }
         try {
-          return await classifySong(env.DB, songClassifyMatch[1], env.GROQ_API_KEY)
+          return await songs.classifySong(request, env, songClassifyMatch[1])
         } catch (err) {
           console.error('Classification error:', err)
           return error(
@@ -731,182 +100,104 @@ export default {
         }
       }
 
-      // GET /api/songs/:id
+      // GET/PUT/DELETE /api/songs/:id
       const songMatch = path.match(/^\/api\/songs\/([^/]+)$/)
-      if (songMatch && method === 'GET') {
-        return getSong(env.DB, songMatch[1])
-      }
-
-      // PUT /api/songs/:id (protected)
-      if (songMatch && method === 'PUT') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<CreateSongInput>()
-        if (!input.title || !input.artist || !input.html) {
-          return error('Missing required fields: title, artist, html')
-        }
-        return updateSong(env.DB, songMatch[1], input)
-      }
-
-      // DELETE /api/songs/:id (protected)
-      if (songMatch && method === 'DELETE') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        return deleteSong(env.DB, songMatch[1])
+      if (songMatch) {
+        const id = songMatch[1]
+        if (method === 'GET') return songs.getSong(request, env, id)
+        if (method === 'PUT') return songs.updateSong(request, env, id)
+        if (method === 'DELETE') return songs.deleteSong(request, env, id)
       }
 
       // GET /api/search?q=
       if (path === '/api/search' && method === 'GET') {
         const query = url.searchParams.get('q') || ''
-        return searchSongs(env.DB, query)
+        return songs.searchSongs(request, env, query)
       }
 
-      // POST /api/extract - Extrai dados de uma URL via Groq LLM (protected)
+      // POST /api/extract
       if (path === '/api/extract' && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<ExtractFromUrlInput>()
-
-        if (!input.url) {
-          return error('Missing required field: url')
-        }
-
-        if (!env.GROQ_API_KEY) {
-          return error('GROQ_API_KEY not configured', 500)
-        }
-
-        try {
-          const extracted = await extractSongFromUrl(input.url, env.GROQ_API_KEY)
-          return json(extracted)
-        } catch (err) {
-          console.error('Extraction error:', err)
-          return error(
-            err instanceof Error ? err.message : 'Falha ao extrair dados da música',
-            500
-          )
-        }
+        return extract.extractFromUrl(request, env)
       }
 
       // ============ SETLISTS ============
 
       // GET /api/setlists/recent
       if (path === '/api/setlists/recent' && method === 'GET') {
-        return getRecentSetlists(env.DB)
+        return setlists.getRecentSetlists(request, env)
       }
 
       // GET /api/setlists
       if (path === '/api/setlists' && method === 'GET') {
-        return listSetlists(env.DB)
+        return setlists.listSetlists(request, env)
       }
 
-      // POST /api/setlists (protected)
+      // POST /api/setlists
       if (path === '/api/setlists' && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<CreateSetlistInput>()
-        if (!input.name || !input.date) {
-          return error('Missing required fields: name, date')
-        }
-        return createSetlist(env.DB, input, auth)
+        return setlists.createSetlist(request, env)
       }
 
       // PUT /api/setlists/:id/view
       const setlistViewMatch = path.match(/^\/api\/setlists\/([^/]+)\/view$/)
       if (setlistViewMatch && method === 'PUT') {
-        return markSetlistViewed(env.DB, setlistViewMatch[1])
+        return setlists.markSetlistViewed(request, env, setlistViewMatch[1])
       }
 
-      // Rotas com :id
+      // GET/PUT/DELETE /api/setlists/:id
       const setlistMatch = path.match(/^\/api\/setlists\/([^/]+)$/)
       if (setlistMatch) {
         const id = setlistMatch[1]
-        if (method === 'GET') return getSetlist(env.DB, id)
-        if (method === 'PUT') {
-          const auth = await requireAuth(request, env)
-          if (auth instanceof Response) return auth
-
-          const input = await request.json<UpdateSetlistInput>()
-          return updateSetlist(env.DB, id, input)
-        }
-        if (method === 'DELETE') {
-          const auth = await requireAuth(request, env)
-          if (auth instanceof Response) return auth
-
-          return deleteSetlist(env.DB, id)
-        }
+        if (method === 'GET') return setlists.getSetlist(request, env, id)
+        if (method === 'PUT') return setlists.updateSetlist(request, env, id)
+        if (method === 'DELETE') return setlists.deleteSetlist(request, env, id)
       }
 
-      // POST /api/setlists/:id/songs (protected)
+      // POST /api/setlists/:id/songs
       const addSongMatch = path.match(/^\/api\/setlists\/([^/]+)\/songs$/)
       if (addSongMatch && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<AddSongToSetlistInput>()
-        if (!input.songId || !input.key) {
-          return error('Missing required fields: songId, key')
-        }
-        return addSongToSetlist(env.DB, addSongMatch[1], input)
+        return setlists.addSongToSetlist(request, env, addSongMatch[1])
       }
 
-      // PUT/DELETE /api/setlists/:id/items/:itemId (protected)
+      // PUT/DELETE /api/setlists/:id/items/:itemId
       const itemMatch = path.match(/^\/api\/setlists\/([^/]+)\/items\/([^/]+)$/)
-      if (itemMatch && method === 'DELETE') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        return removeItemFromSetlist(env.DB, itemMatch[1], itemMatch[2])
-      }
-      if (itemMatch && method === 'PUT') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<UpdateSetlistSongInput>()
-        return updateSetlistItem(env.DB, itemMatch[1], itemMatch[2], input)
+      if (itemMatch) {
+        const [, setlistId, itemId] = itemMatch
+        if (method === 'DELETE') return setlists.removeItemFromSetlist(request, env, setlistId, itemId)
+        if (method === 'PUT') return setlists.updateSetlistItem(request, env, setlistId, itemId)
       }
 
-      // PUT /api/setlists/:id/reorder (protected)
+      // PUT /api/setlists/:id/reorder
       const reorderMatch = path.match(/^\/api\/setlists\/([^/]+)\/reorder$/)
       if (reorderMatch && method === 'PUT') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<ReorderSetlistInput>()
-        if (!input.itemIds) {
-          return error('Missing required field: itemIds')
-        }
-        return reorderSetlist(env.DB, reorderMatch[1], input)
+        return setlists.reorderSetlist(request, env, reorderMatch[1])
       }
 
       // ============ USERS ============
 
-      // POST /api/users/sync (protected) - Sync current user profile
+      // POST /api/users/sync
       if (path === '/api/users/sync' && method === 'POST') {
-        const auth = await requireAuth(request, env)
-        if (auth instanceof Response) return auth
-
-        const input = await request.json<SyncUserInput>()
-        return syncUser(env.DB, auth, input)
+        return users.syncUser(request, env)
       }
 
-      // GET /api/users?ids=id1,id2,id3 - Get multiple users by IDs
+      // GET /api/users?ids=id1,id2,id3
       if (path === '/api/users' && method === 'GET') {
         const idsParam = url.searchParams.get('ids')
         if (!idsParam) {
           return error('Missing required query param: ids')
         }
         const ids = idsParam.split(',').filter(id => id.trim())
-        return getUsers(env.DB, ids)
+        return users.getUsers(env, ids)
       }
 
-      // GET /api/users/:id - Get user by ID
+      // GET /api/users/:id
       const userMatch = path.match(/^\/api\/users\/([^/]+)$/)
       if (userMatch && method === 'GET') {
-        return getUser(env.DB, userMatch[1])
+        return users.getUser(env, userMatch[1])
+      }
+
+      // GET /api/me
+      if (path === '/api/me' && method === 'GET') {
+        return users.getMe(request, env)
       }
 
       return error('Not found', 404)

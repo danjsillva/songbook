@@ -1,6 +1,31 @@
+-- Workspaces (multi-tenancy)
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+-- Invites (for inviting users to workspace)
+CREATE TABLE IF NOT EXISTS invites (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  token TEXT UNIQUE NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_token ON invites(token);
+CREATE INDEX IF NOT EXISTS idx_invites_workspace ON invites(workspace_id);
+
 -- Tabela principal de músicas
 CREATE TABLE IF NOT EXISTS songs (
   id TEXT PRIMARY KEY,
+  workspace_id TEXT REFERENCES workspaces(id),
   title TEXT NOT NULL,
   artist TEXT NOT NULL,
   original_key TEXT,
@@ -14,6 +39,7 @@ CREATE TABLE IF NOT EXISTS songs (
 );
 
 -- Índices para ordenação
+CREATE INDEX IF NOT EXISTS idx_songs_workspace ON songs(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_songs_created_at ON songs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title);
 CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist);
@@ -49,6 +75,7 @@ END;
 -- Setlists
 CREATE TABLE IF NOT EXISTS setlists (
   id TEXT PRIMARY KEY,
+  workspace_id TEXT REFERENCES workspaces(id),
   name TEXT NOT NULL,
   date TEXT NOT NULL,
   created_at INTEGER NOT NULL,
@@ -56,6 +83,7 @@ CREATE TABLE IF NOT EXISTS setlists (
   created_by TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_setlists_workspace ON setlists(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_setlists_date ON setlists(date DESC);
 CREATE INDEX IF NOT EXISTS idx_setlists_last_viewed ON setlists(last_viewed_at DESC);
 
@@ -78,9 +106,13 @@ CREATE INDEX IF NOT EXISTS idx_setlist_songs_setlist ON setlist_songs(setlist_id
 -- Users (synced from Firebase Auth)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  workspace_id TEXT REFERENCES workspaces(id),
+  role TEXT DEFAULT 'member',
   name TEXT,
   email TEXT,
   photo_url TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_workspace ON users(workspace_id);

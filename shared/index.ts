@@ -140,11 +140,15 @@ export interface ReorderSetlistInput {
 
 // ============ USERS ============
 
+export type UserRole = 'admin' | 'member'
+
 export interface User {
   id: string
   name: string | null
   email: string | null
   photoUrl: string | null
+  workspaceId: string | null
+  role: UserRole
   createdAt: number
   updatedAt: number
 }
@@ -153,4 +157,47 @@ export interface SyncUserInput {
   name?: string | null
   email?: string | null
   photoUrl?: string | null
+}
+
+// ============ WORKSPACES ============
+
+export interface Workspace {
+  id: string
+  name: string
+  slug: string
+  createdAt: number
+}
+
+export interface CreateWorkspaceInput {
+  name: string
+  slug: string
+}
+
+export interface UpdateWorkspaceInput {
+  name?: string
+}
+
+// ============ INVITES ============
+
+export interface Invite {
+  id: string
+  workspaceId: string
+  email: string
+  role: UserRole
+  token: string
+  expiresAt: number
+  createdBy: string
+  createdAt: number
+  usedAt: number | null
+}
+
+export interface CreateInviteInput {
+  email: string
+  role?: UserRole
+}
+
+export interface InviteInfo {
+  workspace: Workspace
+  email: string
+  invitedBy: User | null
 }

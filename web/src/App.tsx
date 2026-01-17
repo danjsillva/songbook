@@ -1,20 +1,67 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { Route, Switch, useLocation, useParams } from 'wouter'
+import { Loader2 } from 'lucide-react'
 import { api } from './api/client'
 import { useSong } from './hooks/useSong'
 import { useSetlist } from './hooks/useSetlist'
+import { useAuth } from './contexts/AuthContext'
+import { useWorkspace } from './contexts/WorkspaceContext'
 import { Dashboard } from './components/Dashboard'
 import { SongViewer } from './components/SongViewer'
 import { SongForm } from './components/SongForm'
 import { SetlistViewer } from './components/SetlistViewer'
 import { SetlistForm } from './components/SetlistForm'
 import { SearchModal } from './components/SearchModal'
+import { Onboarding } from './components/Onboarding'
 import { Layout } from './components/Layout'
 import type { SongListItem, SetlistListItem } from '@songbook/shared'
 
 type ModalType = 'songs' | 'setlists' | null
 
 function App() {
+  const { user: firebaseUser, loading: authLoading, signIn } = useAuth()
+  const { workspace, loading: workspaceLoading, needsOnboarding } = useWorkspace()
+
+  // Show loading while auth or workspace is loading
+  if (authLoading || workspaceLoading) {
+    return (
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-accent animate-spin" />
+          <span className="text-text-tertiary text-sm">Carregando...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login screen if not authenticated
+  if (!firebaseUser) {
+    return (
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Stage</h1>
+          <p className="text-text-secondary mb-8">Gestão de repertório e escalas para ministérios de louvor</p>
+          <button
+            onClick={signIn}
+            className="w-full h-12 bg-accent hover:bg-accent-hover rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 text-bg-primary"
+          >
+            Entrar com Google
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show onboarding if user needs to create/join workspace
+  if (needsOnboarding || !workspace) {
+    return <Onboarding />
+  }
+
+  // Show main app
+  return <MainApp />
+}
+
+function MainApp() {
   const [modalType, setModalType] = useState<ModalType>(null)
   const [, navigate] = useLocation()
 

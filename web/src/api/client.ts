@@ -1,21 +1,37 @@
 import type {
   Song, SongListItem, CreateSongInput, SearchResult, ExtractedSongData, ExtractFromUrlInput,
   Setlist, SetlistListItem, CreateSetlistInput, UpdateSetlistInput, AddSongToSetlistInput, UpdateSetlistSongInput, ReorderSetlistInput,
-  User, SyncUserInput
+  User, SyncUserInput,
+  Workspace, CreateWorkspaceInput, UpdateWorkspaceInput, CreateInviteInput, InviteInfo
 } from '@songbook/shared'
 import { getAuthToken } from '../contexts/AuthContext'
+import { getWorkspaceId } from '../contexts/WorkspaceContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit & { skipWorkspace?: boolean }): Promise<T> {
   const token = getAuthToken()
+  const workspaceId = getWorkspaceId()
+  const { skipWorkspace, ...fetchOptions } = options || {}
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  // Include workspace ID for most requests (except auth/workspace management)
+  if (workspaceId && !skipWorkspace) {
+    headers['X-Workspace-Id'] = workspaceId
+  }
 
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options?.headers,
+      ...headers,
+      ...fetchOptions?.headers,
     },
   })
 
@@ -28,6 +44,47 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // ============ WORKSPACES ============
+  workspaces: {
+    create: (input: CreateWorkspaceInput) =>
+      request<Workspace>('/workspaces', {
+        method: 'POST',
+        body: JSON.stringify(input),
+        skipWorkspace: true,
+      }),
+
+    getBySlug: (slug: string) =>
+      request<Workspace>(`/workspaces/${slug}`, { skipWorkspace: true }),
+
+    update: (id: string, input: UpdateWorkspaceInput) =>
+      request<Workspace>(`/workspaces/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+
+    getMyWorkspace: () =>
+      request<Workspace | null>('/me/workspace', { skipWorkspace: true }),
+
+    createInvite: (workspaceId: string, input: CreateInviteInput) =>
+      request<{ token: string; expiresAt: number }>(`/workspaces/${workspaceId}/invites`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+  },
+
+  // ============ INVITES ============
+  invites: {
+    getInfo: (token: string) =>
+      request<InviteInfo>(`/invites/${token}`, { skipWorkspace: true }),
+
+    accept: (token: string) =>
+      request<Workspace>(`/invites/${token}/accept`, {
+        method: 'POST',
+        skipWorkspace: true,
+      }),
+  },
+
+  // ============ SONGS ============
   songs: {
     list: () => request<SongListItem[]>('/songs'),
 
@@ -70,6 +127,7 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  // ============ SETLISTS ============
   setlists: {
     list: () => request<SetlistListItem[]>('/setlists'),
 
@@ -121,16 +179,20 @@ export const api = {
       }),
   },
 
+  // ============ USERS ============
   users: {
     sync: (input: SyncUserInput) =>
       request<User>('/users/sync', {
         method: 'POST',
         body: JSON.stringify(input),
+        skipWorkspace: true,
       }),
 
-    get: (id: string) => request<User>(`/users/${id}`),
+    me: () => request<User>('/me', { skipWorkspace: true }),
+
+    get: (id: string) => request<User>(`/users/${id}`, { skipWorkspace: true }),
 
     getMany: (ids: string[]) =>
-      request<User[]>(`/users?ids=${ids.join(',')}`),
+      request<User[]>(`/users?ids=${ids.join(',')}`, { skipWorkspace: true }),
   },
 }
