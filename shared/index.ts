@@ -237,3 +237,24 @@ export interface InviteInfo {
   email: string
   invitedBy: User | null
 }
+
+// ============ PRESENCE / FOLLOW MODE ============
+
+// Estado de presença de um usuário em um setlist
+export interface UserPresence {
+  userId: string
+  position: number        // índice da música (0-indexed)
+  sectionIndex: number    // índice da seção (bolinha)
+  transpose: number       // semitons de transposição
+  allowFollowers: boolean // permitir ser seguido
+  updatedAt: number       // timestamp
+  // Dados do usuário (desnormalizados para evitar fetch extra)
+  userName: string | null
+  userPhoto: string | null
+}
+
+// Estado de quem um usuário está seguindo
+export interface FollowingState {
+  leaderId: string        // quem está seguindo
+  setlistId: string       // em qual setlist
+}

@@ -15,6 +15,7 @@ import {
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useAuth } from '../contexts/AuthContext'
 import { Badge } from './Layout'
+import { PresenceAvatars } from './PresenceAvatars'
 
 interface SetlistNavProps {
   current: number
@@ -157,6 +158,9 @@ export function TopBar({
 
       {/* Desktop Actions - Fixed right position */}
       <div className="absolute right-4 lg:right-6 hidden sm:flex items-center gap-1">
+        {/* Presence Avatars (Figma-style) */}
+        <PresenceAvatars />
+
         {/* Add Button */}
         <div className="relative" ref={addMenuRef}>
           <button

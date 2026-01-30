@@ -7,8 +7,10 @@ import { FloatingControls } from './FloatingControls'
 import { NotesSidebar } from './NotesSidebar'
 import { SectionMinimap } from './SectionMinimap'
 import { AuthorBadge } from './AuthorBadge'
+import { FollowBanner } from './FollowBanner'
 import { api } from '../api/client'
 import { useMobileControls } from '../contexts/MobileControlsContext'
+import { usePresenceContextOptional } from '../contexts/PresenceContext'
 import { useToast } from './Toast'
 
 function formatDate(timestamp: number): string {
@@ -133,6 +135,7 @@ export function SongViewer({
   const [notesMinimized, setNotesMinimized] = useState(!notes?.trim())
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
   const { isMinimized: isMobileControlsMinimized, toggle: toggleMobileControls } = useMobileControls()
+  const presence = usePresenceContextOptional()
   const { showToast } = useToast()
   const contentRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -163,13 +166,56 @@ export function SongViewer({
 
   const currentKey = getKeyFromSemitones(song.originalKey, transpose, preference)
 
+  // Current position in setlist (moved up to be available for presence sync)
+  const currentPosition = setlistSongs?.findIndex(s => s.itemId === setlistItemId) ?? -1
+
+  // Publish section index changes to presence
+  useEffect(() => {
+    presence?.updateSectionIndex(currentSectionIndex)
+  }, [currentSectionIndex, presence])
+
+  // Publish transpose changes to presence
+  useEffect(() => {
+    presence?.updateTranspose(transpose)
+  }, [transpose, presence])
+
+  // Ref to track if we're syncing from leader (to avoid loops)
+  const isSyncingFromLeaderRef = useRef(false)
+
+  // Sync with leader when following
+  useEffect(() => {
+    if (!presence?.leader || !setlistSongs || !onNavigateToSong) return
+
+    const { leader } = presence
+
+    // Sync position (song)
+    if (leader.position !== currentPosition && !isSyncingFromLeaderRef.current) {
+      isSyncingFromLeaderRef.current = true
+      const targetSong = setlistSongs[leader.position]
+      if (targetSong) {
+        onNavigateToSong(
+          targetSong.songId,
+          targetSong.key,
+          targetSong.bpm,
+          targetSong.notes,
+          targetSong.itemId,
+          setlistSongs,
+          leader.position
+        )
+      }
+      // Reset sync flag after navigation
+      setTimeout(() => {
+        isSyncingFromLeaderRef.current = false
+      }, 500)
+    }
+  }, [presence?.leader?.position, currentPosition, setlistSongs, onNavigateToSong, presence?.leader])
+
   // Auto-focus container on song entry
   useEffect(() => {
     contentRef.current?.focus({ preventScroll: true })
   }, [song.id])
 
-  // Current position in setlist and navigation
-  const currentPosition = setlistSongs?.findIndex(s => s.itemId === setlistItemId) ?? -1
+  // Navigation helpers
   const canGoPrev = currentPosition > 0
   const canGoNext = currentPosition >= 0 && currentPosition < (setlistSongs?.length ?? 0) - 1
 
@@ -234,6 +280,28 @@ export function SongViewer({
       isNavigatingRef.current = false
     }, 500)
   }, [sectionIndices])
+
+  // Sync section index with leader
+  useEffect(() => {
+    if (!presence?.leader || isSyncingFromLeaderRef.current) return
+
+    const { leader } = presence
+    const leaderSectionLineIndex = sectionIndices[leader.sectionIndex]
+
+    if (leaderSectionLineIndex !== undefined && leader.sectionIndex !== currentSectionIndex) {
+      handleNavigateToSection(leaderSectionLineIndex)
+    }
+  }, [presence?.leader?.sectionIndex, sectionIndices, handleNavigateToSection, currentSectionIndex, presence?.leader])
+
+  // Sync transpose with leader
+  useEffect(() => {
+    if (!presence?.leader || isSyncingFromLeaderRef.current) return
+
+    const { leader } = presence
+    if (leader.transpose !== transpose) {
+      setTranspose(leader.transpose)
+    }
+  }, [presence?.leader?.transpose, transpose, presence?.leader])
 
   // Track current section on scroll - with throttle via requestAnimationFrame
   useEffect(() => {
@@ -367,6 +435,9 @@ export function SongViewer({
       bpm={bpmOverride || song.bpm}
       originalKey={song.originalKey}
     >
+      {/* Follow Banner - shows when following someone */}
+      <FollowBanner />
+
       {/* FloatingControls Desktop - hidden on mobile */}
       <div
         className="hidden lg:flex fixed z-40 left-1/2 justify-end pr-4"

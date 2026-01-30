@@ -7,6 +7,7 @@ import { useSetlist } from './hooks/useSetlist'
 import { songCache } from './cache/songCache'
 import { useAuth } from './contexts/AuthContext'
 import { useWorkspace } from './contexts/WorkspaceContext'
+import { PresenceProvider } from './contexts/PresenceContext'
 import { Dashboard } from './components/Dashboard'
 import { SongViewer } from './components/SongViewer'
 import { SongForm } from './components/SongForm'
@@ -16,6 +17,7 @@ import { SearchModal } from './components/SearchModal'
 import { Onboarding } from './components/Onboarding'
 import { Layout } from './components/Layout'
 import type { SongListItem, SetlistListItem } from '@songbook/shared'
+import { getSemitonesBetweenKeys } from './utils/transpose'
 
 type ModalType = 'songs' | 'setlists' | null
 
@@ -325,6 +327,8 @@ function ViewSetlistSongPage({ navCallbacks, renderModals }: PageProps) {
   const { setlistId, position } = useParams<{ setlistId: string; position: string }>()
   const { setlist, loading: loadingSetlist } = useSetlist(setlistId!)
   const positionNum = parseInt(position!, 10)
+  const { user } = useAuth()
+  const { workspace } = useWorkspace()
 
   const [, navigate] = useLocation()
 
@@ -378,8 +382,21 @@ function ViewSetlistSongPage({ navCallbacks, renderModals }: PageProps) {
     position: idx,
   }))
 
+  // Calculate initial transpose in semitones
+  const initialTranspose = setlistSong.key && song.originalKey
+    ? getSemitonesBetweenKeys(song.originalKey, setlistSong.key)
+    : 0
+
   return (
-    <>
+    <PresenceProvider
+      workspaceId={workspace?.id || null}
+      setlistId={setlistId || null}
+      userId={user?.uid || null}
+      userName={user?.displayName || null}
+      userPhoto={user?.photoURL || null}
+      initialPosition={positionNum}
+      initialTranspose={initialTranspose}
+    >
       <SongViewer
         {...navCallbacks}
         song={song}
@@ -401,7 +418,7 @@ function ViewSetlistSongPage({ navCallbacks, renderModals }: PageProps) {
         }}
       />
       {renderModals?.()}
-    </>
+    </PresenceProvider>
   )
 }
 
